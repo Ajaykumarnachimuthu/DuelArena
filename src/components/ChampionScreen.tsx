@@ -12,8 +12,6 @@ export function ChampionScreen({ ajayPoints, selvaaPoints }: ChampionProps) {
   const champName = isAjayLeading ? 'AJAY' : 'SELVAA'
   const champPoints = isAjayLeading ? ajayPoints : selvaaPoints
   
-  const mainColor = isAjayLeading ? 'brand-cyan' : 'brand-pink'
-  const glowShadow = isAjayLeading ? 'shadow-[0_0_30px_rgba(129,236,255,0.3)]' : 'shadow-[0_0_30px_rgba(233,102,255,0.3)]'
   const textGlow = isAjayLeading ? 'text-glow-cyan' : 'text-glow-pink'
   const borderColor = isAjayLeading ? 'border-brand-cyan/50' : 'border-brand-pink/50'
 

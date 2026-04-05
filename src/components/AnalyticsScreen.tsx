@@ -9,7 +9,6 @@ interface AnalyticsProps {
 export function AnalyticsScreen({ tasks }: AnalyticsProps) {
   // Aggregate data by the last 7 days dynamically
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const todayIndex = new Date().getDay()
   
   // Create an array mapping the last 7 days ending on today
   const last7 = Array.from({length: 7}).map((_, i) => {
