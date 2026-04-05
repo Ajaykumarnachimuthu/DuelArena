@@ -10,6 +10,7 @@ import { AnalyticsScreen } from './components/AnalyticsScreen'
 import { ChampionScreen } from './components/ChampionScreen'
 import { HistoryScreen } from './components/HistoryScreen'
 import { ProfileScreen } from './components/ProfileScreen'
+import { BottomNav } from './components/BottomNav'
 import { BellRing } from 'lucide-react'
 
 // These UUIDs represent the actual users fetched from the live database
@@ -132,7 +133,7 @@ export default function App() {
            theme={theme}
          />
          
-         <main className="flex-1 p-6 overflow-y-auto relative z-10">
+         <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto relative z-10">
            {currentTab === 'dashboard' && (
              <DashboardScreen 
                dailyTasks={tasks.filter(t => new Date(t.created_at).toDateString() === todayStr)} 
@@ -148,6 +149,8 @@ export default function App() {
            {currentTab === 'profile' && <ProfileScreen tasks={tasks} currentUser={currentUser} points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints} />}
            {currentTab === 'champion' && <ChampionScreen ajayPoints={todayAjayPoints} selvaaPoints={todaySelvaaPoints} />}
          </main>
+         
+         <BottomNav currentTab={currentTab} setTab={setTab} theme={theme} />
       </div>
     </div>
   )

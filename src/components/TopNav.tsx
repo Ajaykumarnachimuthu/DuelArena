@@ -58,12 +58,12 @@ export function TopNav({ currentTab, setTab, currentUser, setCurrentUser, global
         <button 
           onClick={() => setGlobalRush(!globalRush)}
           className={cn(
-             "hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold tracking-widest transition-colors",
+             "flex items-center justify-center gap-2 px-3 md:px-4 py-1.5 md:py-1.5 h-8 md:h-auto rounded-full font-bold tracking-widest transition-colors",
              globalRush ? "border border-brand-red text-brand-red bg-brand-red/20 shadow-[0_0_15px_rgba(255,112,118,0.5)]" : "border border-brand-red/50 bg-brand-red/5 text-brand-red/50 hover:bg-brand-red/20"
           )}
         >
-          <Zap className="w-3 h-3" />
-          RUSH_MODE
+          <Zap className="w-3.5 h-3.5 md:w-3 md:h-3" />
+          <span className="hidden md:inline text-xs">RUSH_MODE</span>
         </button>
       </div>
     </div>

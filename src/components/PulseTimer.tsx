@@ -31,7 +31,7 @@ export function PulseTimer({ globalRush }: { globalRush: boolean }) {
       <div className="font-mono text-[10px] tracking-[0.3em] text-white/50 mb-4 z-10">DAILY TASK DUEL: FINAL COUNTDOWN</div>
       
       <div className={cn(
-        "font-mono text-7xl md:text-9xl font-black tabular-nums tracking-tighter mix-blend-screen z-10",
+        "font-mono text-5xl md:text-9xl font-black tabular-nums tracking-tighter mix-blend-screen z-10",
         isRushMode ? "text-brand-red text-glow-red rush-mode-pulse" : "text-white text-glow-cyan"
       )}>
         {timeLeft}
