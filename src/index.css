@@ -46,6 +46,14 @@
   .border-glow-pink { box-shadow: 0 0 20px rgba(233, 102, 255, 0.2); border-color: rgba(233, 102, 255, 0.5); }
   .rush-mode-pulse { animation: rush-pulse 0.8s infinite alternate ease-in-out; }
   .crown-bounce { animation: bounce 2s infinite ease-in-out; }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 @keyframes rush-pulse {

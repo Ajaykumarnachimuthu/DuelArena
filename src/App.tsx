@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './lib/supabase'
 import { Task } from './lib/types'
 import { Sidebar } from './components/Sidebar'
-import { TopNav } from './components/TopNav'
 import { DashboardScreen } from './components/DashboardScreen'
 import { TaskScreen } from './components/TaskScreen'
 import { AnalyticsScreen } from './components/AnalyticsScreen'
@@ -118,22 +117,22 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <Sidebar currentTab={currentTab} setTab={setTab} points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints} theme={theme} />
+      {/* Desktop Command Matrix */}
+      <Sidebar 
+        currentTab={currentTab} 
+        setTab={setTab} 
+        points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints} 
+        theme={theme} 
+        currentUser={currentUser} 
+        setCurrentUser={setCurrentUser} 
+        globalRush={globalRush} 
+        setGlobalRush={setGlobalRush} 
+      />
       
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative overflow-hidden">
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative overflow-hidden pb-safe">
          <div className={`absolute top-0 right-0 w-full h-[500px] bg-gradient-to-b ${theme === 'cyan' ? 'from-brand-cyan/[0.02]' : 'from-brand-pink/[0.02]'} to-transparent pointer-events-none transition-colors duration-1000`} />
          
-         <TopNav 
-           currentTab={currentTab} 
-           setTab={setTab} 
-           currentUser={currentUser} 
-           setCurrentUser={setCurrentUser} 
-           globalRush={globalRush}
-           setGlobalRush={setGlobalRush}
-           theme={theme}
-         />
-         
-         <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 overflow-y-auto relative z-10">
+         <main className="flex-1 p-4 md:p-8 pb-32 md:pb-8 overflow-y-auto relative z-10">
            {currentTab === 'dashboard' && (
              <DashboardScreen 
                dailyTasks={tasks.filter(t => new Date(t.created_at).toDateString() === todayStr)} 
@@ -150,7 +149,16 @@ export default function App() {
            {currentTab === 'champion' && <ChampionScreen ajayPoints={todayAjayPoints} selvaaPoints={todaySelvaaPoints} />}
          </main>
          
-         <BottomNav currentTab={currentTab} setTab={setTab} theme={theme} />
+         {/* Mobile Swipeable Command Matrix */}
+         <BottomNav 
+           currentTab={currentTab} 
+           setTab={setTab} 
+           theme={theme} 
+           currentUser={currentUser} 
+           setCurrentUser={setCurrentUser} 
+           globalRush={globalRush} 
+           setGlobalRush={setGlobalRush} 
+         />
       </div>
     </div>
   )
