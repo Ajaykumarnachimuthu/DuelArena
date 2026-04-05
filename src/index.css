@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-cyan: #81ecff;
+  --color-brand-pink: #e966ff;
+  --color-brand-red: #ff7076;
+
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+@layer base {
+  body {
+    @apply bg-black text-white font-body selection:bg-brand-cyan/20 selection:text-brand-cyan;
+    background: radial-gradient(circle at 50% -20%, rgba(129, 236, 255, 0.1), transparent 40%),
+                radial-gradient(circle at -20% 50%, rgba(233, 102, 255, 0.05), transparent 50%),
+                radial-gradient(circle at 120% 50%, rgba(129, 236, 255, 0.05), transparent 50%),
+                #000000;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-bold tracking-wider uppercase;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/5;
+  }
+  .glass-panel {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/10;
+  }
+  .cyber-border {
+    position: relative;
+  }
+  .cyber-border::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: inherit;
+    box-shadow: inset 0 0 20px rgba(255,255,255,0.02);
+  }
+  .text-glow-cyan { text-shadow: 0 0 15px rgba(129, 236, 255, 0.6), 0 0 30px rgba(129, 236, 255, 0.4); }
+  .text-glow-pink { text-shadow: 0 0 15px rgba(233, 102, 255, 0.6), 0 0 30px rgba(233, 102, 255, 0.4); }
+  .border-glow-cyan { box-shadow: 0 0 20px rgba(129, 236, 255, 0.2); border-color: rgba(129, 236, 255, 0.5); }
+  .border-glow-pink { box-shadow: 0 0 20px rgba(233, 102, 255, 0.2); border-color: rgba(233, 102, 255, 0.5); }
+  .rush-mode-pulse { animation: rush-pulse 0.8s infinite alternate ease-in-out; }
+  .crown-bounce { animation: bounce 2s infinite ease-in-out; }
+}
+
+@keyframes rush-pulse {
+  0% { box-shadow: 0 0 15px rgba(255, 112, 118, 0.3); border-color: rgba(255, 112, 118, 0.4); text-shadow: 0 0 10px rgba(255, 112, 118, 0.5); }
+  100% { box-shadow: 0 0 40px rgba(255, 112, 118, 0.8); border-color: rgba(255, 112, 118, 1); text-shadow: 0 0 20px rgba(255, 112, 118, 1); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Custom scrollbar for cyber aesthetic */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(129, 236, 255, 0.5); }
