@@ -1,6 +1,9 @@
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { motion } from 'framer-motion'
 import { Task } from '../lib/types'
 import { cn } from '../lib/utils'
+import { isTaskActive } from '../lib/canvasUtils'
+import { Zap } from 'lucide-react'
 
 interface AnalyticsProps {
   tasks: Task[]
@@ -39,11 +42,13 @@ export function AnalyticsScreen({ tasks }: AnalyticsProps) {
   const ajayTotal = last7.reduce((s, d) => s + d.Ajay, 0)
   const selvaaTotal = last7.reduce((s, d) => s + d.Selvaa, 0)
 
+  const activeTasks = tasks.filter(t => isTaskActive(t.id))
+
   return (
     <div className="max-w-6xl mx-auto pt-8 pb-32 fade-in space-y-8">
       
       {/* Main Chart */}
-      <div className="glass-panel cyber-border p-8 h-[400px]">
+      <div className="glass-panel cyber-border p-4 md:p-8 h-[260px] sm:h-[340px] md:h-[400px]">
         <h3 className="font-display tracking-[0.2em] text-white/50 mb-8">WEEKLY_COMBAT_DATA</h3>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={last7} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
@@ -64,6 +69,37 @@ export function AnalyticsScreen({ tasks }: AnalyticsProps) {
            <StatCard title="GROWTH FORECAST" val="STABLE" color="cyan" text="AJAY continues consistent output momentum." />
         )}
       </div>
+
+      {/* Active Tasks In-Progress Live Analytics Breakdown */}
+      {activeTasks.length > 0 && (
+        <div className="glass-panel p-6 cyber-border">
+          <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
+            <h4 className="font-display text-xs tracking-widest text-amber-300 uppercase flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400" /> ACTIVE_TASKS_IN_PROGRESS ({activeTasks.length})
+            </h4>
+            <span className="font-mono text-[10px] text-white/40">LIVE EXECUTION MONITOR</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {activeTasks.map(t => (
+              <div key={t.id} className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/10 flex items-center justify-between">
+                <div>
+                  <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[160px]">{t.title}</div>
+                  <div className="font-mono text-[10px] text-white/40 mt-0.5">{t.category}</div>
+                </div>
+                <motion.div
+                  animate={{ scale: [1, 0.94, 1], opacity: [1, 0.75, 1] }}
+                  transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1 shrink-0"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                  <span>ON PROGRESS</span>
+                </motion.div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   )

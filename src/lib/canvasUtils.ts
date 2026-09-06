@@ -111,3 +111,17 @@ export function saveTaskMeta(taskId: string, meta: TaskMeta): void {
     console.error('Failed to save task meta:', e)
   }
 }
+
+// Global Task Status helper queries
+export function isTaskCompleted(taskId: string): boolean {
+  const meta = loadTaskMeta()[taskId]
+  if (meta?.completed) return true
+  const subtasks = loadTaskSubtasks()[taskId] || []
+  if (subtasks.length > 0 && subtasks.every(st => st.completed)) return true
+  return false
+}
+
+export function isTaskActive(taskId: string): boolean {
+  const meta = loadTaskMeta()[taskId]
+  return !!meta?.is_active
+}

@@ -16,7 +16,18 @@ export function ChampionScreen({ ajayPoints, selvaaPoints }: ChampionProps) {
   const borderColor = isAjayLeading ? 'border-brand-cyan/50' : 'border-brand-pink/50'
 
   return (
-    <div className="max-w-4xl mx-auto pt-20 pb-32 flex flex-col items-center text-center fade-in">
+    <div className="max-w-4xl mx-auto pt-16 pb-32 flex flex-col items-center text-center fade-in">
+      
+      {/* Live Blinking ON PROGRESS Status Banner */}
+      <motion.div
+        animate={{ scale: [1, 0.95, 1], opacity: [1, 0.8, 1] }}
+        transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+        className="mb-6 px-4 py-1.5 rounded-full text-xs font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-extrabold tracking-widest flex items-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+      >
+        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+        <span>DAILY_CHAMPION • ON PROGRESS</span>
+      </motion.div>
+
       <div className="font-mono text-sm tracking-[0.3em] text-white/50 mb-8 uppercase">Live_Daily_Victor_Projections</div>
       
       <div className="relative mb-12">
@@ -33,11 +44,11 @@ export function ChampionScreen({ ajayPoints, selvaaPoints }: ChampionProps) {
         </div>
       </div>
 
-      <h1 className={cn("font-display text-5xl md:text-7xl font-black mb-6 text-white transition-colors duration-1000", textGlow)}>
+      <h1 className={cn("font-display text-3xl sm:text-5xl md:text-7xl font-black mb-6 text-white transition-colors duration-1000", textGlow)}>
         {champName} IS LEADING!
       </h1>
 
-      <div className="flex gap-8 mb-12">
+      <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 mb-12 w-full max-w-md px-4">
         <div className={cn("glass-panel p-6 border text-center transition-colors duration-1000", borderColor)}>
           <div className={cn("font-mono text-4xl text-white font-bold mb-2 transition-colors duration-1000", textGlow)}>{champPoints}</div>
           <div className="text-xs font-mono tracking-[0.2em] text-white/40">TODAY'S_YIELD</div>

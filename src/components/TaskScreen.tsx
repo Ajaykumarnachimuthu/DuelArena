@@ -35,6 +35,9 @@ interface TaskScreenProps {
 }
 
 export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps) {
+  // Mobile View Mode Adaptation: 'canvas' | 'list'
+  const [viewMode, setViewMode] = useState<'canvas' | 'list'>('canvas')
+
   // Filter state: 'all' | 'ajay' | 'selvaa'
   const [filterUser, setFilterUser] = useState<'all' | 'ajay' | 'selvaa'>('all')
 
@@ -63,8 +66,8 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   // Subtask inline edit per card
   const [inlineSubtaskInput, setInlineSubtaskInput] = useState<Record<string, string>>({})
 
-  // Canvas View transform
-  const [zoom, setZoom] = useState(1)
+  // Canvas View transform (0.85 on mobile, 1.2 on desktop)
+  const [zoom, setZoom] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 0.85 : 1.2))
 
   const canvasRef = useRef<HTMLDivElement>(null)
 
@@ -302,6 +305,30 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
               <span className="w-2 h-2 rounded-full bg-brand-pink shadow-[0_0_8px_#e966ff]" /> SELVAA
             </button>
           </div>
+
+          {/* Mobile/Desktop View Mode Switcher: Canvas vs List */}
+          <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10">
+            <button 
+              onClick={() => setViewMode('canvas')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5",
+                viewMode === 'canvas' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
+              )}
+              title="Interactive 2D Infinite Canvas"
+            >
+              <Layout className="w-3.5 h-3.5" /> CANVAS
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5",
+                viewMode === 'list' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
+              )}
+              title="Touch-friendly Mobile Flow List"
+            >
+              <CheckSquare className="w-3.5 h-3.5" /> LIST
+            </button>
+          </div>
         </div>
 
         {/* Right: Actions */}
@@ -347,11 +374,12 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
         </div>
       </div>
 
-      {/* Main Canvas Whiteboard Playground Area */}
-      <div 
-        ref={canvasRef}
-        className="relative w-full h-[680px] rounded-3xl overflow-hidden blueprint-grid border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)]"
-      >
+      {/* Main Playground Area: 2D Canvas View or Mobile List View */}
+      {viewMode === 'canvas' ? (
+        <div 
+          ref={canvasRef}
+          className="relative w-full h-[650px] sm:h-[680px] rounded-3xl overflow-hidden blueprint-grid border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas"
+        >
         
         {/* Canvas Background Info Overlay */}
         <div className="absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-3 font-mono text-[11px] text-white/30 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/5">
@@ -691,6 +719,98 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           )}
         </div>
       </div>
+      ) : (
+        /* Mobile Touch-Friendly Flow List View */
+        <div className="space-y-4">
+          {visibleTasks.length === 0 ? (
+            <div className="glass-panel p-8 rounded-2xl text-center space-y-3">
+              <Layout className="w-8 h-8 text-white/30 mx-auto" />
+              <h3 className="font-display text-sm text-white/60 tracking-widest">NO OBJECTIVES AVAILABLE</h3>
+              <p className="font-mono text-xs text-white/40">Deploy a new task node to populate the list view.</p>
+            </div>
+          ) : (
+            visibleTasks.map(t => {
+              const subtasks = subtasksMap[t.id] || []
+              const taskMeta = metaMap[t.id] || {}
+              const isAjay = t.user_id === AJAY_ID
+              const completedSubtasks = subtasks.filter(st => st.completed).length
+              const totalSubtasks = subtasks.length
+              const progressPct = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : (taskMeta.completed ? 100 : 0)
+              const isCompleted = taskMeta.completed || (totalSubtasks > 0 && completedSubtasks === totalSubtasks)
+
+              return (
+                <div key={t.id} className="glass-panel p-5 rounded-2xl cyber-border space-y-4 bg-black/80">
+                  <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={cn("w-2.5 h-2.5 rounded-full", isAjay ? "bg-brand-cyan shadow-[0_0_8px_#81ecff]" : "bg-brand-pink shadow-[0_0_8px_#e966ff]")} />
+                        <span className="font-mono text-[10px] text-white/50 uppercase">{isAjay ? 'AJAY' : 'SELVAA'} // {t.category}</span>
+                      </div>
+                      <h3 className="font-display text-base font-bold text-white">{t.title}</h3>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-400 font-mono font-bold text-xs">+{t.points} XP</span>
+                      <button onClick={() => onDelete(t.id)} className="p-1.5 text-white/30 hover:text-brand-red rounded-lg">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Status & Progress */}
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 text-[10px]">{t.difficulty}</span>
+                    {isCompleted ? (
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" /> COMPLETED
+                      </span>
+                    ) : taskMeta.is_active ? (
+                      <motion.span
+                        animate={{ scale: [1, 0.94, 1], opacity: [1, 0.75, 1] }}
+                        transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50 flex items-center gap-1.5"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" /> ON PROGRESS
+                      </motion.span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-white/40 border border-white/10">
+                        STANDBY
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-mono text-white/50">
+                      <span>PROGRESS</span>
+                      <span>{progressPct}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
+                      <div className={cn("h-full rounded-full", isCompleted ? "bg-emerald-400" : isAjay ? "bg-brand-cyan" : "bg-brand-pink")} style={{ width: `${progressPct}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Subtask List */}
+                  {subtasks.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-white/10">
+                      {subtasks.map(st => (
+                        <button
+                          key={st.id}
+                          onClick={() => handleToggleSubtask(t.id, st.id)}
+                          className={cn("w-full p-2.5 rounded-xl border text-left flex items-center gap-2.5 font-mono text-xs", st.completed ? "bg-white/[0.02] border-white/5 text-white/40 line-through" : "bg-white/5 border-white/10 text-white")}
+                        >
+                          {st.completed ? <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" /> : <Square className="w-4 h-4 text-white/30 shrink-0" />}
+                          <span className="flex-1">{st.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
 
       {/* Deploy New Objective Slide-over Modal */}
       <AnimatePresence>

@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion'
 import { Task, getRank, getLevelNumber } from '../lib/types'
 import { cn } from '../lib/utils'
-import { UserCircle2, Zap } from 'lucide-react'
+import { UserCircle2, Zap, CheckCircle2 } from 'lucide-react'
+import { isTaskActive, isTaskCompleted } from '../lib/canvasUtils'
 
 // Hardcoded user maps
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -100,18 +101,40 @@ export function ProfileScreen({ tasks, currentUser, points }: ProfileProps) {
         <div className="glass-panel p-8 cyber-border overflow-hidden flex flex-col h-[400px]">
           <h3 className="font-display tracking-[0.2em] text-white/50 mb-6 uppercase text-sm border-b border-white/10 pb-4">Lifetime_Audit_Log</h3>
           <div className="overflow-y-auto pr-4 space-y-3 flex-1 scrollbar-thin">
-            {userTasks.slice(0, 50).map(t => (
-              <div key={t.id} className={cn("flex justify-between items-center bg-white/[0.02] p-3 rounded border hover:bg-white/[0.05] transition-colors", `${borderCol}/10`)}>
-                <div className="flex items-center gap-3">
-                  <Zap className={cn("w-4 h-4 opacity-50", textColor)} />
-                  <div>
-                    <div className="font-mono text-[11px] text-white/90 truncate max-w-[200px]">{t.title}</div>
-                    <div className="font-mono text-[9px] text-white/40 tracking-widest">{t.category} // {new Date(t.created_at).toLocaleDateString()}</div>
+            {userTasks.slice(0, 50).map(t => {
+              const active = isTaskActive(t.id)
+              const completed = isTaskCompleted(t.id)
+              return (
+                <div key={t.id} className={cn("flex justify-between items-center bg-white/[0.02] p-3 rounded-xl border hover:bg-white/[0.05] transition-colors", `${borderCol}/10`)}>
+                  <div className="flex items-center gap-3">
+                    <Zap className={cn("w-4 h-4 opacity-70 shrink-0", textColor)} />
+                    <div>
+                      <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[180px] sm:max-w-[240px]">{t.title}</div>
+                      <div className="font-mono text-[9px] text-white/40 tracking-widest mt-0.5">{t.category} // {new Date(t.created_at).toLocaleDateString()}</div>
+                    </div>
                   </div>
+
+                  {/* Status Badge: Pulsing & Shrinking ON PROGRESS vs COMPLETED */}
+                  {active ? (
+                    <motion.div
+                      animate={{ scale: [1, 0.94, 1], opacity: [1, 0.75, 1] }}
+                      transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+                      className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1 shrink-0"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                      <span>ON PROGRESS • +{t.points}</span>
+                    </motion.div>
+                  ) : completed ? (
+                    <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1 shrink-0">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      <span>DONE • +{t.points}</span>
+                    </div>
+                  ) : (
+                    <div className={cn("font-mono text-xs font-bold", textColor)}>+{t.points} XP</div>
+                  )}
                 </div>
-                <div className={cn("font-mono text-xs font-bold", textColor)}>+{t.points}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

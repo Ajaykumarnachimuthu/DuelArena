@@ -11,6 +11,7 @@ import { ChampionScreen } from './components/ChampionScreen'
 import { HistoryScreen } from './components/HistoryScreen'
 import { ProfileScreen } from './components/ProfileScreen'
 import { BottomNav } from './components/BottomNav'
+import { MobileHeader } from './components/MobileHeader'
 import { BellRing } from 'lucide-react'
 
 // These UUIDs represent the actual users fetched from the live database
@@ -154,9 +155,20 @@ export default function App() {
       />
       
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative overflow-hidden pb-safe">
+         {/* Mobile Sticky Command Topbar */}
+         <MobileHeader
+           currentTab={currentTab}
+           theme={theme}
+           currentUser={currentUser}
+           setCurrentUser={setCurrentUser}
+           points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints}
+           globalRush={globalRush}
+           setGlobalRush={setGlobalRush}
+         />
+
          <div className={`absolute top-0 right-0 w-full h-[500px] bg-gradient-to-b ${theme === 'cyan' ? 'from-brand-cyan/[0.02]' : 'from-brand-pink/[0.02]'} to-transparent pointer-events-none transition-colors duration-1000`} />
          
-         <main className="flex-1 p-4 md:p-8 pb-32 md:pb-8 overflow-y-auto relative z-10">
+         <main className="flex-1 p-3 sm:p-6 md:p-8 pb-32 md:pb-8 overflow-y-auto relative z-10">
            {currentTab === 'dashboard' && (
              <DashboardScreen 
                dailyTasks={tasks.filter(t => new Date(t.created_at).toDateString() === todayStr)} 
