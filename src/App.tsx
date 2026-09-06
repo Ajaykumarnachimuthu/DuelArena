@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './lib/supabase'
 import { Task } from './lib/types'
-import { saveTaskSubtasks, saveTaskMeta } from './lib/canvasUtils'
+import { saveTaskSubtasks, saveTaskMeta, isTaskCompleted } from './lib/canvasUtils'
 import { Sidebar } from './components/Sidebar'
 import { DashboardScreen } from './components/DashboardScreen'
 import { TaskScreen } from './components/TaskScreen'
@@ -25,8 +25,9 @@ export default function App() {
   const [globalRush, setGlobalRush] = useState(false)
   const [notification, setNotification] = useState<{ id: string, msg: string } | null>(null)
 
-  const ajayPoints = tasks.filter(t => t.user_id === AJAY_ID).reduce((sum, t) => sum + t.points, 0) || 0
-  const selvaaPoints = tasks.filter(t => t.user_id === SELVAA_ID).reduce((sum, t) => sum + t.points, 0) || 0
+  // XP is earned ONLY when tasks are completed
+  const ajayPoints = tasks.filter(t => t.user_id === AJAY_ID && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
+  const selvaaPoints = tasks.filter(t => t.user_id === SELVAA_ID && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
 
   useEffect(() => {
     async function fetchTasks() {
@@ -122,8 +123,8 @@ export default function App() {
   const theme = currentUser === AJAY_ID ? 'cyan' : 'pink'
 
   const todayStr = new Date().toDateString()
-  const todayAjayPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && t.user_id === AJAY_ID).reduce((s, t) => s + t.points, 0) || 0
-  const todaySelvaaPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && t.user_id === SELVAA_ID).reduce((s, t) => s + t.points, 0) || 0
+  const todayAjayPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && t.user_id === AJAY_ID && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
+  const todaySelvaaPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && t.user_id === SELVAA_ID && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
 
   return (
     <div className="flex min-h-screen bg-black">

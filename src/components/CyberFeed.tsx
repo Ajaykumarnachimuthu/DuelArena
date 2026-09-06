@@ -60,7 +60,7 @@ export function CyberFeed({ tasks }: { tasks: Task[] }) {
                       className="px-3 py-1 rounded-lg text-xs font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(245,158,11,0.4)]"
                     >
                       <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
-                      <span>ON PROGRESS • +{t.points} XP</span>
+                      <span>ON PROGRESS</span>
                     </motion.div>
                   ) : completed ? (
                     <div className="px-3 py-1 rounded-lg text-xs font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.3)]">
@@ -68,8 +68,8 @@ export function CyberFeed({ tasks }: { tasks: Task[] }) {
                       <span>COMPLETED • +{t.points} XP</span>
                     </div>
                   ) : (
-                    <div className="font-mono text-base font-bold text-white/70">
-                      +{t.points} XP
+                    <div className="px-3 py-1 rounded-lg text-xs font-mono uppercase bg-white/5 text-white/40 border border-white/10 tracking-wider">
+                      STANDBY
                     </div>
                   )}
                 </div>

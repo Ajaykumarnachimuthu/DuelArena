@@ -25,9 +25,10 @@ export function ProfileScreen({ tasks, currentUser, points }: ProfileProps) {
   const shadowGlow = theme === 'cyan' ? 'shadow-[0_0_30px_rgba(129,236,255,0.3)]' : 'shadow-[0_0_30px_rgba(233,102,255,0.3)]'
 
   const userTasks = tasks.filter(t => t.user_id === currentUser)
+  const completedTasks = userTasks.filter(t => isTaskCompleted(t.id))
   
-  // Category mapping
-  const cats = userTasks.reduce((acc, t) => {
+  // Category mapping based strictly on completed operations
+  const cats = completedTasks.reduce((acc, t) => {
     acc[t.category] = (acc[t.category] || 0) + 1
     return acc
   }, {} as Record<string, number>)
@@ -122,15 +123,17 @@ export function ProfileScreen({ tasks, currentUser, points }: ProfileProps) {
                       className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1 shrink-0"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                      <span>ON PROGRESS • +{t.points}</span>
+                      <span>ON PROGRESS</span>
                     </motion.div>
                   ) : completed ? (
                     <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1 shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                      <span>DONE • +{t.points}</span>
+                      <span>DONE • +{t.points} XP</span>
                     </div>
                   ) : (
-                    <div className={cn("font-mono text-xs font-bold", textColor)}>+{t.points} XP</div>
+                    <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-white/5 text-white/40 border border-white/10 shrink-0">
+                      STANDBY
+                    </div>
                   )}
                 </div>
               )

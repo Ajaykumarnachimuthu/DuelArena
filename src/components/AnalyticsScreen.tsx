@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { motion } from 'framer-motion'
 import { Task } from '../lib/types'
 import { cn } from '../lib/utils'
-import { isTaskActive } from '../lib/canvasUtils'
+import { isTaskActive, isTaskCompleted } from '../lib/canvasUtils'
 import { Zap } from 'lucide-react'
 
 interface AnalyticsProps {
@@ -25,15 +25,17 @@ export function AnalyticsScreen({ tasks }: AnalyticsProps) {
     }
   })
 
-  // Map XP summing to the days
+  // Map XP summing to the days ONLY for completed tasks
   tasks.forEach(t => {
-     const tDate = new Date(t.created_at).toDateString()
-     const dayObj = last7.find(d => d.dateString === tDate)
-     if (dayObj) {
-       if (t.user_id === 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88') {
-         dayObj.Ajay += t.points
-       } else {
-         dayObj.Selvaa += t.points
+     if (isTaskCompleted(t.id)) {
+       const tDate = new Date(t.created_at).toDateString()
+       const dayObj = last7.find(d => d.dateString === tDate)
+       if (dayObj) {
+         if (t.user_id === 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88') {
+           dayObj.Ajay += t.points
+         } else {
+           dayObj.Selvaa += t.points
+         }
        }
      }
   })

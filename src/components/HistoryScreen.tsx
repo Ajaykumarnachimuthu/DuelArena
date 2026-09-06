@@ -57,8 +57,8 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
         const dayTasks = grouped[dateStr]
         const ajays = dayTasks.filter(t => t.user_id === AJAY_ID)
         const selvaas = dayTasks.filter(t => t.user_id === SELVAA_ID)
-        const ajayXP = ajays.reduce((s,t) => s + t.points, 0)
-        const selvaaXP = selvaas.reduce((s,t) => s + t.points, 0)
+        const ajayXP = ajays.filter(t => isTaskCompleted(t.id)).reduce((s,t) => s + t.points, 0)
+        const selvaaXP = selvaas.filter(t => isTaskCompleted(t.id)).reduce((s,t) => s + t.points, 0)
 
         const winner = ajayXP > selvaaXP ? 'AJAY' : selvaaXP > ajayXP ? 'SELVAA' : 'DRAW'
 
@@ -112,15 +112,17 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                               className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1 shrink-0"
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                              <span>ON PROGRESS • +{t.points}</span>
+                              <span>ON PROGRESS</span>
                             </motion.div>
                           ) : completed ? (
                             <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1 shrink-0">
                               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span>DONE • +{t.points}</span>
+                              <span>DONE • +{t.points} XP</span>
                             </div>
                           ) : (
-                            <div className="font-mono text-xs text-brand-cyan font-bold">+{t.points} XP</div>
+                            <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-white/5 text-white/40 border border-white/10 shrink-0">
+                              STANDBY
+                            </div>
                           )}
                         </div>
                       )
@@ -159,15 +161,17 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                             className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1 shrink-0"
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                            <span>ON PROGRESS • +{t.points}</span>
+                            <span>ON PROGRESS</span>
                           </motion.div>
                         ) : completed ? (
                           <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1 shrink-0">
                             <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            <span>DONE • +{t.points}</span>
+                            <span>DONE • +{t.points} XP</span>
                           </div>
                         ) : (
-                          <div className="font-mono text-xs text-brand-pink font-bold">+{t.points} XP</div>
+                          <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-white/5 text-white/40 border border-white/10 shrink-0">
+                            STANDBY
+                          </div>
                         )}
                       </div>
                     )
