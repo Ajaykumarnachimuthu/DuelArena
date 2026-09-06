@@ -13,7 +13,7 @@ import { subscribeRealtimeSync } from '../lib/realtimeSync'
 import { 
   Plus, Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
   Clock, Move, ZoomIn, ZoomOut, CheckSquare, 
-  Layout, Eye, Sparkles, X
+  Layout, Eye, Sparkles, X, Grid as GridIcon
 } from 'lucide-react'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -36,9 +36,6 @@ interface TaskScreenProps {
 }
 
 export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps) {
-  // Mobile View Mode Adaptation: 'list' default on mobile (<640px), 'canvas' on desktop
-  const [viewMode, setViewMode] = useState<'canvas' | 'list'>(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 'list' : 'canvas'))
-
   // Filter state: 'all' | 'ajay' | 'selvaa'
   const [filterUser, setFilterUser] = useState<'all' | 'ajay' | 'selvaa'>('all')
 
@@ -90,19 +87,22 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     }
   }, [])
 
-  // Auto-assign positions for new tasks that lack positions
+  // Auto-assign positions for new tasks that lack positions (vertical column on mobile)
   useEffect(() => {
     let changed = false
     const newPositions = { ...positions }
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+    const COLS = isMobile ? 1 : 3
+    const STEP_X = 414
+    const STEP_Y = 320
 
     tasks.forEach((t, index) => {
       if (!newPositions[t.id]) {
-        // Arrange in grid pattern
-        const col = index % 3
-        const row = Math.floor(index / 3)
+        const col = index % COLS
+        const row = Math.floor(index / COLS)
         newPositions[t.id] = {
-          x: 40 + col * 340,
-          y: 40 + row * 260
+          x: isMobile ? 20 : 64 + col * STEP_X,
+          y: 40 + row * STEP_Y
         }
         saveTaskPosition(t.id, newPositions[t.id].x, newPositions[t.id].y)
         changed = true
@@ -113,6 +113,27 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
       setPositions(newPositions)
     }
   }, [tasks])
+
+  // Auto-align all task cards vertically on mobile or grid pattern on desktop
+  const handleAutoAlignGrid = () => {
+    const updated: Record<string, { x: number; y: number }> = {}
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+    const COLS = isMobile ? 1 : 3
+    const STEP_X = 414
+    const STEP_Y = 320
+
+    tasks.forEach((t, index) => {
+      const col = index % COLS
+      const row = Math.floor(index / COLS)
+      updated[t.id] = {
+        x: isMobile ? 20 : 64 + col * STEP_X,
+        y: 40 + row * STEP_Y
+      }
+      saveTaskPosition(t.id, updated[t.id].x, updated[t.id].y)
+    })
+
+    setPositions(updated)
+  }
 
   // Handle position drag end
   const handleDragEnd = (taskId: string, x: number, y: number) => {
@@ -272,35 +293,35 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     <div className="max-w-7xl mx-auto w-full space-y-6 pb-24 pt-4 fade-in">
       
       {/* Control Matrix Toolbar */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 cyber-border shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+      <div className="glass-panel p-3.5 sm:p-4 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cyber-border shadow-[0_0_30px_rgba(0,0,0,0.8)]">
         
         {/* Left: Title & User Filters */}
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <Layout className={cn("w-6 h-6", textColor)} />
+        <div className="flex flex-wrap items-center justify-between sm:justify-start gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5">
+            <Layout className={cn("w-5 h-5 shrink-0", textColor)} />
             <div>
-              <h2 className="text-sm font-display tracking-widest text-white">OBJECTIVES_PLAYGROUND</h2>
-              <p className="text-[10px] font-mono text-white/40">INTERACTIVE TASK MAP & WHITEBOARD</p>
+              <h2 className="text-xs sm:text-sm font-display tracking-widest text-white leading-tight">OBJECTIVES_PLAYGROUND</h2>
+              <p className="text-[9px] font-mono text-white/40 leading-none">INTERACTIVE TASK MAP & WHITEBOARD</p>
             </div>
           </div>
 
-          <div className="h-6 w-[1px] bg-white/10 hidden md:block" />
+          <div className="h-5 w-[1px] bg-white/10 hidden sm:block" />
 
           {/* User Filter Buttons */}
           <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10">
             <button 
               onClick={() => setFilterUser('all')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5",
+                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
                 filterUser === 'all' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
               )}
             >
-              <Eye className="w-3.5 h-3.5" /> ALL ARENA
+              <Eye className="w-3 h-3" /> ALL
             </button>
             <button 
               onClick={() => setFilterUser('ajay')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5",
+                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
                 filterUser === 'ajay' ? "bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/40 font-bold" : "text-white/40 hover:text-brand-cyan"
               )}
             >
@@ -309,64 +330,49 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
             <button 
               onClick={() => setFilterUser('selvaa')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5",
+                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
                 filterUser === 'selvaa' ? "bg-brand-pink/20 text-brand-pink border border-brand-pink/40 font-bold" : "text-white/40 hover:text-brand-pink"
               )}
             >
               <span className="w-2 h-2 rounded-full bg-brand-pink shadow-[0_0_8px_#e966ff]" /> SELVAA
             </button>
           </div>
-
-          {/* Mobile/Desktop View Mode Switcher: Canvas vs List */}
-          <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10">
-            <button 
-              onClick={() => setViewMode('canvas')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5",
-                viewMode === 'canvas' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
-              )}
-              title="Interactive 2D Infinite Canvas"
-            >
-              <Layout className="w-3.5 h-3.5" /> CANVAS
-            </button>
-            <button 
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1.5",
-                viewMode === 'list' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
-              )}
-              title="Touch-friendly Mobile Flow List"
-            >
-              <CheckSquare className="w-3.5 h-3.5" /> LIST
-            </button>
-          </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-3">
-          
+        <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap">
           {/* Connection Link Mode Toggle */}
           <button 
             onClick={() => setConnectingSourceId(connectingSourceId ? null : 'SELECT_MODE')}
             className={cn(
-              "px-3.5 py-2 rounded-xl text-xs font-mono border transition-all flex items-center gap-2",
+              "px-3 py-1.5 rounded-xl text-[11px] font-mono border transition-all flex items-center gap-1.5",
               connectingSourceId 
                 ? "bg-amber-500/20 border-amber-500 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]" 
                 : "border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
             )}
           >
-            <LinkIcon className="w-4 h-4" />
-            {connectingSourceId ? 'LINKING MODE ACTIVE' : 'CONNECT TASKS'}
+            <LinkIcon className="w-3.5 h-3.5" />
+            {connectingSourceId ? 'LINKING...' : 'CONNECT'}
+          </button>
+
+          {/* Auto Align Grid Button */}
+          <button 
+            onClick={handleAutoAlignGrid}
+            className="px-3 py-1.5 rounded-xl text-[11px] font-mono border border-white/10 text-white/60 hover:bg-white/5 hover:text-white transition-all flex items-center gap-1.5"
+            title="Auto-align all task cards vertically on mobile or in grid pattern on desktop"
+          >
+            <GridIcon className="w-3.5 h-3.5 text-brand-cyan" />
+            ALIGN
           </button>
 
           {/* Zoom Controls */}
-          <div className="flex items-center bg-black/60 rounded-xl border border-white/10 p-1">
-            <button onClick={() => setZoom(z => Math.max(0.6, z - 0.1))} className="p-1.5 text-white/50 hover:text-white">
-              <ZoomOut className="w-4 h-4" />
+          <div className="flex items-center bg-black/60 rounded-xl border border-white/10 p-0.5">
+            <button onClick={() => setZoom(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(2))))} className="p-1.5 text-white/50 hover:text-white">
+              <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="font-mono text-[11px] px-2 text-white/70">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(1.4, z + 0.1))} className="p-1.5 text-white/50 hover:text-white">
-              <ZoomIn className="w-4 h-4" />
+            <span className="font-mono text-[10px] px-1.5 text-white/70">{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom(z => Math.min(2.0, parseFloat((z + 0.1).toFixed(2))))} className="p-1.5 text-white/50 hover:text-white">
+              <ZoomIn className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -376,21 +382,20 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
             whileTap={{ scale: 0.97 }}
             onClick={() => setIsDeployOpen(true)}
             className={cn(
-              "px-5 py-2.5 rounded-xl font-display text-xs font-bold tracking-widest text-black flex items-center gap-2 transition-all shadow-lg",
+              "px-4 py-1.5 rounded-xl font-display text-xs font-bold tracking-wider text-black flex items-center gap-1.5 transition-all shadow-lg shrink-0",
               theme === 'cyan' ? "bg-brand-cyan shadow-[0_0_20px_rgba(129,236,255,0.5)]" : "bg-brand-pink shadow-[0_0_20px_rgba(233,102,255,0.5)]"
             )}
           >
-            <Plus className="w-4 h-4 stroke-[3]" /> NEW OBJECTIVE
+            <Plus className="w-3.5 h-3.5 stroke-[3]" /> NEW OBJECTIVE
           </motion.button>
         </div>
       </div>
 
-      {/* Main Playground Area: 2D Canvas View or Mobile List View */}
-      {viewMode === 'canvas' ? (
-        <div 
-          ref={canvasRef}
-          className="relative w-full h-[650px] sm:h-[680px] rounded-3xl overflow-hidden blueprint-grid border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas"
-        >
+      {/* Main Interactive 2D Canvas Playground Area */}
+      <div 
+        ref={canvasRef}
+        className="relative w-full h-[650px] sm:h-[750px] rounded-3xl overflow-hidden blueprint-grid border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas"
+      >
         
         {/* Canvas Background Info Overlay */}
         <div className="absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-3 font-mono text-[11px] text-white/30 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/5">
@@ -730,98 +735,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           )}
         </div>
       </div>
-      ) : (
-        /* Mobile Touch-Friendly Flow List View */
-        <div className="space-y-4">
-          {visibleTasks.length === 0 ? (
-            <div className="glass-panel p-8 rounded-2xl text-center space-y-3">
-              <Layout className="w-8 h-8 text-white/30 mx-auto" />
-              <h3 className="font-display text-sm text-white/60 tracking-widest">NO OBJECTIVES AVAILABLE</h3>
-              <p className="font-mono text-xs text-white/40">Deploy a new task node to populate the list view.</p>
-            </div>
-          ) : (
-            visibleTasks.map(t => {
-              const subtasks = subtasksMap[t.id] || []
-              const taskMeta = metaMap[t.id] || {}
-              const isAjay = t.user_id === AJAY_ID
-              const completedSubtasks = subtasks.filter(st => st.completed).length
-              const totalSubtasks = subtasks.length
-              const progressPct = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : (taskMeta.completed ? 100 : 0)
-              const isCompleted = taskMeta.completed || (totalSubtasks > 0 && completedSubtasks === totalSubtasks)
-
-              return (
-                <div key={t.id} className="glass-panel p-5 rounded-2xl cyber-border space-y-4 bg-black/80">
-                  <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={cn("w-2.5 h-2.5 rounded-full", isAjay ? "bg-brand-cyan shadow-[0_0_8px_#81ecff]" : "bg-brand-pink shadow-[0_0_8px_#e966ff]")} />
-                        <span className="font-mono text-[10px] text-white/50 uppercase">{isAjay ? 'AJAY' : 'SELVAA'} // {t.category}</span>
-                      </div>
-                      <h3 className="font-display text-base font-bold text-white">{t.title}</h3>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-400 font-mono font-bold text-xs">+{t.points} XP</span>
-                      <button onClick={() => onDelete(t.id)} className="p-1.5 text-white/30 hover:text-brand-red rounded-lg">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Status & Progress */}
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/60 text-[10px]">{t.difficulty}</span>
-                    {isCompleted ? (
-                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-400" /> COMPLETED
-                      </span>
-                    ) : taskMeta.is_active ? (
-                      <motion.span
-                        animate={{ scale: [1, 0.94, 1], opacity: [1, 0.75, 1] }}
-                        transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
-                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50 flex items-center gap-1.5"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" /> ON PROGRESS
-                      </motion.span>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-white/40 border border-white/10">
-                        STANDBY
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-white/50">
-                      <span>PROGRESS</span>
-                      <span>{progressPct}%</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden">
-                      <div className={cn("h-full rounded-full", isCompleted ? "bg-emerald-400" : isAjay ? "bg-brand-cyan" : "bg-brand-pink")} style={{ width: `${progressPct}%` }} />
-                    </div>
-                  </div>
-
-                  {/* Subtask List */}
-                  {subtasks.length > 0 && (
-                    <div className="space-y-1.5 pt-2 border-t border-white/10">
-                      {subtasks.map(st => (
-                        <button
-                          key={st.id}
-                          onClick={() => handleToggleSubtask(t.id, st.id)}
-                          className={cn("w-full p-2.5 rounded-xl border text-left flex items-center gap-2.5 font-mono text-xs", st.completed ? "bg-white/[0.02] border-white/5 text-white/40 line-through" : "bg-white/5 border-white/10 text-white")}
-                        >
-                          {st.completed ? <CheckSquare className="w-4 h-4 text-emerald-400 shrink-0" /> : <Square className="w-4 h-4 text-white/30 shrink-0" />}
-                          <span className="flex-1">{st.title}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-      )}
 
       {/* Deploy New Objective Slide-over Modal */}
       <AnimatePresence>
