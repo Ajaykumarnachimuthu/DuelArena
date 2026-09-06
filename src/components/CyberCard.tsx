@@ -22,19 +22,19 @@ export function CyberCard({ name, color, points, streak, taskCount }: CyberCardP
   return (
     <motion.div 
       whileHover={{ scale: 1.01, y: -2 }}
-      className={cn("glass-panel p-6 cyber-border overflow-hidden relative", borderClass)}
+      className={cn("glass-panel p-4 sm:p-6 cyber-border overflow-hidden relative", borderClass)}
     >
       {/* Background hazy glow */}
       <div className={cn("absolute -top-20 -right-20 w-64 h-64 blur-[100px] opacity-20 rounded-full", bgGlow)} />
 
-      <div className="flex justify-between items-start mb-8 relative z-10">
-        <div className="flex gap-4 items-center">
-          <div className={cn("w-14 h-14 rounded-lg border flex items-center justify-center font-display text-2xl font-bold", borderClass, textGlow, "bg-black/50")}>
+      <div className="flex justify-between items-start mb-6 sm:mb-8 relative z-10">
+        <div className="flex gap-3 sm:gap-4 items-center">
+          <div className={cn("w-12 h-12 sm:w-14 sm:h-14 rounded-lg border flex items-center justify-center font-display text-xl sm:text-2xl font-bold", borderClass, textGlow, "bg-black/50")}>
             {name[0]}
           </div>
           <div>
-            <h2 className={cn("font-display text-2xl uppercase tracking-widest", textGlow)}>{name}</h2>
-            <div className="flex gap-3 text-xs font-mono text-white/50 mt-1 uppercase">
+            <h2 className={cn("font-display text-xl sm:text-2xl uppercase tracking-widest", textGlow)}>{name}</h2>
+            <div className="flex gap-2 sm:gap-3 text-[11px] sm:text-xs font-mono text-white/50 mt-1 uppercase">
               <span>Streak: <span className="text-white">{streak}</span></span>
               <span>Tasks: <span className="text-white">{taskCount}</span></span>
             </div>
@@ -45,7 +45,7 @@ export function CyberCard({ name, color, points, streak, taskCount }: CyberCardP
       <div className="flex justify-between items-end mb-4 relative z-10">
         <div>
           <div className="text-[10px] tracking-[0.2em] text-white/40 mb-1">TOTAL_XP_YIELD</div>
-          <div className={cn("font-mono font-bold text-5xl", textGlow)}>{points.toString().padStart(4, '0')}</div>
+          <div className={cn("font-mono font-bold text-3xl sm:text-5xl", textGlow)}>{points.toString().padStart(4, '0')}</div>
         </div>
         <div className="text-right">
           <div className="font-display text-sm tracking-widest text-white/70 mb-1">{rank}</div>

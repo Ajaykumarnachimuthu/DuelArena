@@ -1,4 +1,5 @@
 import { SubTask } from './types'
+import { broadcastSubtaskUpdate, broadcastTaskMetaUpdate } from './realtimeSync'
 
 const POSITIONS_KEY = 'habit_arena_task_positions_v1'
 const CONNECTIONS_KEY = 'habit_arena_task_connections_v1'
@@ -80,12 +81,12 @@ export function loadTaskSubtasks(): Record<string, SubTask[]> {
     return {}
   }
 }
-
 export function saveTaskSubtasks(taskId: string, subtasks: SubTask[]): void {
   try {
     const current = loadTaskSubtasks()
     current[taskId] = subtasks
     localStorage.setItem(SUBTASKS_KEY, JSON.stringify(current))
+    broadcastSubtaskUpdate(taskId, subtasks)
   } catch (e) {
     console.error('Failed to save task subtasks:', e)
   }
@@ -105,8 +106,10 @@ export function loadTaskMeta(): Record<string, TaskMeta> {
 export function saveTaskMeta(taskId: string, meta: TaskMeta): void {
   try {
     const current = loadTaskMeta()
-    current[taskId] = { ...current[taskId], ...meta }
+    const updatedMeta = { ...current[taskId], ...meta }
+    current[taskId] = updatedMeta
     localStorage.setItem(META_KEY, JSON.stringify(current))
+    broadcastTaskMetaUpdate(taskId, updatedMeta)
   } catch (e) {
     console.error('Failed to save task meta:', e)
   }

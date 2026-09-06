@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './lib/supabase'
 import { Task } from './lib/types'
 import { saveTaskSubtasks, saveTaskMeta, isTaskCompleted } from './lib/canvasUtils'
+import { subscribeRealtimeSync } from './lib/realtimeSync'
 import { Sidebar } from './components/Sidebar'
 import { DashboardScreen } from './components/DashboardScreen'
 import { TaskScreen } from './components/TaskScreen'
@@ -24,6 +25,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(AJAY_ID)
   const [globalRush, setGlobalRush] = useState(false)
   const [notification, setNotification] = useState<{ id: string, msg: string } | null>(null)
+  const [, setSyncTick] = useState(0)
 
   // XP is earned ONLY when tasks are completed
   const ajayPoints = tasks.filter(t => t.user_id === AJAY_ID && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
@@ -40,6 +42,13 @@ export default function App() {
     }
     fetchTasks()
     
+    // Cross-device Realtime Sync listener
+    const unsubscribeSync = subscribeRealtimeSync(() => {
+      // Trigger immediate UI re-render when another device broadcasts active / subtask changes
+      setSyncTick(prev => prev + 1)
+      fetchTasks()
+    })
+
     // Realtime Subs
     const channel = supabase.channel('schema-db-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
@@ -57,7 +66,10 @@ export default function App() {
       })
       .subscribe()
       
-    return () => { supabase.removeChannel(channel) }
+    return () => { 
+      supabase.removeChannel(channel)
+      unsubscribeSync()
+    }
   }, [currentUser])
 
   // Clear toast after 4 seconds

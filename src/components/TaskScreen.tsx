@@ -9,6 +9,7 @@ import {
   loadTaskMeta, saveTaskMeta,
   calculateBezierPath 
 } from '../lib/canvasUtils'
+import { subscribeRealtimeSync } from '../lib/realtimeSync'
 import { 
   Plus, Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
   Clock, Move, ZoomIn, ZoomOut, CheckSquare, 
@@ -35,8 +36,8 @@ interface TaskScreenProps {
 }
 
 export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps) {
-  // Mobile View Mode Adaptation: 'canvas' | 'list'
-  const [viewMode, setViewMode] = useState<'canvas' | 'list'>('canvas')
+  // Mobile View Mode Adaptation: 'list' default on mobile (<640px), 'canvas' on desktop
+  const [viewMode, setViewMode] = useState<'canvas' | 'list'>(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 'list' : 'canvas'))
 
   // Filter state: 'all' | 'ajay' | 'selvaa'
   const [filterUser, setFilterUser] = useState<'all' | 'ajay' | 'selvaa'>('all')
@@ -71,12 +72,22 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
   const canvasRef = useRef<HTMLDivElement>(null)
 
-  // Load local state maps on mount
+  // Load local state maps on mount & subscribe to cross-device broadcast sync
   useEffect(() => {
     setPositions(loadTaskPositions())
     setConnections(loadTaskConnections())
     setSubtasksMap(loadTaskSubtasks())
     setMetaMap(loadTaskMeta())
+
+    const unsubscribe = subscribeRealtimeSync(() => {
+      // Refresh local state maps live upon receiving cross-device broadcast update
+      setMetaMap(loadTaskMeta())
+      setSubtasksMap(loadTaskSubtasks())
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   // Auto-assign positions for new tasks that lack positions
