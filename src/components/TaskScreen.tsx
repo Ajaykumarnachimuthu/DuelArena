@@ -172,6 +172,19 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     setSubtasksMap(newMap)
     saveTaskSubtasks(taskId, updatedSubtasks)
 
+    // Check if all subtasks are now completed
+    const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed)
+    const currentMeta = metaMap[taskId] || {}
+    if (allCompleted && !currentMeta.completed) {
+      const updatedMeta = { ...currentMeta, completed: true, is_active: false }
+      setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
+      saveTaskMeta(taskId, updatedMeta)
+    } else if (!allCompleted && currentMeta.completed) {
+      const updatedMeta = { ...currentMeta, completed: false }
+      setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
+      saveTaskMeta(taskId, updatedMeta)
+    }
+
     triggerPercentageFlash(taskId, updatedSubtasks)
   }
 
@@ -198,7 +211,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   const handleToggleActive = (taskId: string) => {
     const currentMeta = metaMap[taskId] || {}
     const newActiveState = !currentMeta.is_active
-    const updatedMeta = { ...currentMeta, is_active: newActiveState }
+    const updatedMeta = { 
+      ...currentMeta, 
+      is_active: newActiveState,
+      completed: newActiveState ? false : currentMeta.completed
+    }
 
     setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
     saveTaskMeta(taskId, updatedMeta)
@@ -208,7 +225,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   const handleToggleComplete = (taskId: string) => {
     const currentMeta = metaMap[taskId] || {}
     const newComplete = !currentMeta.completed
-    const updatedMeta = { ...currentMeta, completed: newComplete }
+    const updatedMeta = { 
+      ...currentMeta, 
+      completed: newComplete,
+      is_active: newComplete ? false : currentMeta.is_active
+    }
 
     setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
     saveTaskMeta(taskId, updatedMeta)
@@ -519,11 +540,12 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
               const subtasks = subtasksMap[t.id] || []
               const meta = metaMap[t.id] || {}
-              const isActive = meta.is_active || false
-              const isCompleted = meta.completed || false
 
               const completedSubtasksCount = subtasks.filter(st => st.completed).length
               const totalSubtasks = subtasks.length
+
+              const isCompleted = meta.completed || (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks)
+              const isActive = !isCompleted && (meta.is_active || false)
 
               // Subtask Completion Percentage
               let completionRatio = 0
@@ -559,17 +581,17 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   className="absolute cursor-grab active:cursor-grabbing z-10 group"
                   style={{ width: cardWidth }}
                 >
-                  {/* Rotating Active Border Wrapper if Task is Teamup or "Going On" */}
+                  {/* Rotating Active Border Wrapper if Task is "Going On" (stops automatically when completed) */}
                   <div 
                     className={cn(
-                      isTeamup ? "teamup-rotating-container" : isActive ? "active-rotating-container" : ""
+                      isActive ? (isTeamup ? "teamup-rotating-container" : "active-rotating-container") : ""
                     )}
                     style={{ '--active-color': cardThemeColor } as React.CSSProperties}
                   >
                     <div className={cn(
                       "active-rotating-content relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300",
-                      cardBorderClass,
-                      cardGlowClass,
+                      isCompleted ? "border-emerald-500/50 bg-emerald-950/10 shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardBorderClass,
+                      isCompleted ? "shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardGlowClass,
                       isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
                     )}>
                       
@@ -585,14 +607,14 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                           height="100%"
                           rx="12"
                           fill="none"
-                          stroke={isTeamup ? '#e966ff' : cardThemeColor}
+                          stroke={isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor}
                           strokeWidth="3"
                           strokeDasharray={perimeter}
                           strokeDashoffset={dashOffset}
                           strokeLinecap="round"
                           style={{
                             transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
-                            filter: completionRatio > 0 ? `drop-shadow(0 0 8px ${isTeamup ? '#e966ff' : cardThemeColor})` : 'none'
+                            filter: completionRatio > 0 ? `drop-shadow(0 0 8px ${isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor})` : 'none'
                           }}
                         />
                       </svg>
@@ -600,7 +622,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       {/* Card Header: Owner Badge & Active/Connect Controls */}
                       <div className="flex items-center justify-between mb-3 relative z-10">
                         <div className="flex items-center gap-2">
-                          {isTeamup ? (
+                          {isCompleted ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> COMPLETED
+                            </span>
+                          ) : isTeamup ? (
                             <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-extrabold bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border-white/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(233,102,255,0.3)]">
                               <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan shadow-[0_0_6px_#81ecff]" />
                               <span className="w-1.5 h-1.5 rounded-full bg-brand-pink shadow-[0_0_6px_#e966ff]" />

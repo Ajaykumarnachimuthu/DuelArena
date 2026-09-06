@@ -84,6 +84,7 @@
       var(--active-color, #81ecff) 270deg,
       #ffffff 360deg
     );
+    opacity: 0.4;
     animation: rotate-border 3s linear infinite;
     z-index: 0;
   }
@@ -115,6 +116,7 @@
       #81ecff 240deg,
       #ffffff 360deg
     );
+    opacity: 0.45;
     animation: rotate-border 3s linear infinite;
     z-index: 0;
   }

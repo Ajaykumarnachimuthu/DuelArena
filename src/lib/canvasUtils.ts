@@ -107,6 +107,10 @@ export function saveTaskMeta(taskId: string, meta: TaskMeta): void {
   try {
     const current = loadTaskMeta()
     const updatedMeta = { ...current[taskId], ...meta }
+    // If marking task as completed, automatically turn off active state
+    if (updatedMeta.completed) {
+      updatedMeta.is_active = false
+    }
     current[taskId] = updatedMeta
     localStorage.setItem(META_KEY, JSON.stringify(current))
     broadcastTaskMetaUpdate(taskId, updatedMeta)
@@ -125,6 +129,7 @@ export function isTaskCompleted(taskId: string): boolean {
 }
 
 export function isTaskActive(taskId: string): boolean {
+  if (isTaskCompleted(taskId)) return false
   const meta = loadTaskMeta()[taskId]
   return !!meta?.is_active
 }
