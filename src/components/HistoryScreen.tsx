@@ -54,9 +54,10 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
       )}
 
       {sortedDates.map((dateStr, idx) => {
+        const isTeamup = (t: Task) => t.category === 'Teamup' || t.difficulty === 'Teamup'
         const dayTasks = grouped[dateStr]
-        const ajays = dayTasks.filter(t => t.user_id === AJAY_ID)
-        const selvaas = dayTasks.filter(t => t.user_id === SELVAA_ID)
+        const ajays = dayTasks.filter(t => t.user_id === AJAY_ID || isTeamup(t))
+        const selvaas = dayTasks.filter(t => t.user_id === SELVAA_ID || isTeamup(t))
         const ajayXP = ajays.filter(t => isTaskCompleted(t.id)).reduce((s,t) => s + t.points, 0)
         const selvaaXP = selvaas.filter(t => isTaskCompleted(t.id)).reduce((s,t) => s + t.points, 0)
 

@@ -24,7 +24,8 @@ export function ProfileScreen({ tasks, currentUser, points }: ProfileProps) {
   const borderCol = theme === 'cyan' ? 'border-brand-cyan' : 'border-brand-pink'
   const shadowGlow = theme === 'cyan' ? 'shadow-[0_0_30px_rgba(129,236,255,0.3)]' : 'shadow-[0_0_30px_rgba(233,102,255,0.3)]'
 
-  const userTasks = tasks.filter(t => t.user_id === currentUser)
+  const isTeamup = (t: Task) => t.category === 'Teamup' || t.difficulty === 'Teamup'
+  const userTasks = tasks.filter(t => t.user_id === currentUser || isTeamup(t))
   const completedTasks = userTasks.filter(t => isTaskCompleted(t.id))
   
   // Category mapping based strictly on completed operations

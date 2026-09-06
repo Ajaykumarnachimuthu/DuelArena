@@ -94,6 +94,37 @@
     border-radius: 12px !important;
   }
 
+  /* Dual Cyan & Pink Rotating Border for Teamup Tasks & Buttons */
+  .teamup-rotating-container {
+    position: relative;
+    border-radius: 14px;
+    padding: 2px;
+    overflow: hidden;
+  }
+
+  .teamup-rotating-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      #81ecff 0deg,
+      #e966ff 120deg,
+      #81ecff 240deg,
+      #ffffff 360deg
+    );
+    animation: rotate-border 3s linear infinite;
+    z-index: 0;
+  }
+
+  .teamup-rotating-content {
+    position: relative;
+    z-index: 1;
+    border-radius: 12px !important;
+  }
+
   /* Flowline energy animation */
   .flowline-animated {
     stroke-dasharray: 8 6;

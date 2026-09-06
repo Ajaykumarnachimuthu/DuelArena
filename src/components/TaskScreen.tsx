@@ -13,7 +13,7 @@ import { subscribeRealtimeSync } from '../lib/realtimeSync'
 import { 
   Plus, Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
   Clock, Move, ZoomIn, ZoomOut, CheckSquare, 
-  Layout, Eye, Sparkles, X, Grid as GridIcon
+  Layout, Eye, Sparkles, X, Grid as GridIcon, Users
 } from 'lucide-react'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -376,6 +376,29 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
             </button>
           </div>
 
+          {/* Combined Cyan & Pink Rotating Border Teamup Button */}
+          <div className="teamup-rotating-container shrink-0">
+            <motion.button 
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => {
+                setCat('Teamup')
+                setDiff('Teamup')
+                setTitle('Teamup Objective')
+                setIsDeployOpen(true)
+              }}
+              className="teamup-rotating-content px-3.5 py-1.5 font-display text-xs font-bold tracking-wider text-white bg-black/90 hover:bg-black/70 flex items-center gap-1.5 transition-all shadow-lg cursor-pointer"
+            >
+              <Users className="w-3.5 h-3.5 text-brand-cyan" />
+              <span className="bg-gradient-to-r from-brand-cyan via-purple-300 to-brand-pink bg-clip-text text-transparent font-extrabold tracking-wider">
+                [ TEAMUP TASK ]
+              </span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-amber-300 border border-amber-500/30">
+                300 XP EACH
+              </span>
+            </motion.button>
+          </div>
+
           {/* Deploy New Task Modal Trigger */}
           <motion.button 
             whileHover={{ scale: 1.03 }}
@@ -483,10 +506,15 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           ) : (
             visibleTasks.map(t => {
               const pos = positions[t.id] || { x: 40, y: 40 }
+              const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
               const isAjay = t.user_id === AJAY_ID
-              const cardThemeColor = isAjay ? '#81ecff' : '#e966ff'
-              const cardBorderClass = isAjay ? 'border-brand-cyan/40' : 'border-brand-pink/40'
-              const cardGlowClass = isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
+              const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
+              const cardBorderClass = isTeamup 
+                ? 'border-purple-400/60 bg-gradient-to-br from-brand-cyan/10 via-purple-950/20 to-brand-pink/10' 
+                : isAjay ? 'border-brand-cyan/40' : 'border-brand-pink/40'
+              const cardGlowClass = isTeamup 
+                ? 'shadow-[0_0_30px_rgba(233,102,255,0.25)] shadow-[0_0_30px_rgba(129,236,255,0.25)]' 
+                : isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
               const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
 
               const subtasks = subtasksMap[t.id] || []
@@ -531,10 +559,10 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   className="absolute cursor-grab active:cursor-grabbing z-10 group"
                   style={{ width: cardWidth }}
                 >
-                  {/* Rotating Active Border Wrapper if Task is "Going On" */}
+                  {/* Rotating Active Border Wrapper if Task is Teamup or "Going On" */}
                   <div 
                     className={cn(
-                      isActive ? "active-rotating-container" : ""
+                      isTeamup ? "teamup-rotating-container" : isActive ? "active-rotating-container" : ""
                     )}
                     style={{ '--active-color': cardThemeColor } as React.CSSProperties}
                   >
@@ -557,14 +585,14 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                           height="100%"
                           rx="12"
                           fill="none"
-                          stroke={cardThemeColor}
+                          stroke={isTeamup ? '#e966ff' : cardThemeColor}
                           strokeWidth="3"
                           strokeDasharray={perimeter}
                           strokeDashoffset={dashOffset}
                           strokeLinecap="round"
                           style={{
                             transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
-                            filter: completionRatio > 0 ? `drop-shadow(0 0 8px ${cardThemeColor})` : 'none'
+                            filter: completionRatio > 0 ? `drop-shadow(0 0 8px ${isTeamup ? '#e966ff' : cardThemeColor})` : 'none'
                           }}
                         />
                       </svg>
@@ -572,9 +600,17 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       {/* Card Header: Owner Badge & Active/Connect Controls */}
                       <div className="flex items-center justify-between mb-3 relative z-10">
                         <div className="flex items-center gap-2">
-                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-bold", cardPillBg)}>
-                            {isAjay ? 'AJAY' : 'SELVAA'}
-                          </span>
+                          {isTeamup ? (
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-extrabold bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border-white/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(233,102,255,0.3)]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan shadow-[0_0_6px_#81ecff]" />
+                              <span className="w-1.5 h-1.5 rounded-full bg-brand-pink shadow-[0_0_6px_#e966ff]" />
+                              AJAY + SELVAA
+                            </span>
+                          ) : (
+                            <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-bold", cardPillBg)}>
+                              {isAjay ? 'AJAY' : 'SELVAA'}
+                            </span>
+                          )}
 
                           {/* Going On Active Badge */}
                           {isActive && (
@@ -636,9 +672,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                               transition={{ duration: 0.25 }}
                               className={cn(
                                 "w-full py-1 px-2.5 rounded-lg border font-mono text-xs font-bold tracking-widest text-center shadow-lg",
-                                isAjay 
-                                  ? "bg-brand-cyan/20 border-brand-cyan text-brand-cyan text-glow-cyan" 
-                                  : "bg-brand-pink/20 border-brand-pink text-brand-pink text-glow-pink"
+                                isTeamup
+                                  ? "bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 border-purple-400 text-white"
+                                  : isAjay 
+                                    ? "bg-brand-cyan/20 border-brand-cyan text-brand-cyan text-glow-cyan" 
+                                    : "bg-brand-pink/20 border-brand-pink text-brand-pink text-glow-pink"
                               )}
                             >
                               ⚡ {flashText}
@@ -669,8 +707,8 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                           <span className="flex items-center gap-1 text-amber-300/80">
                             <Clock className="w-3 h-3" /> {meta.duration_minutes || 45}m
                           </span>
-                          <span className={cn("font-bold text-xs", isAjay ? "text-brand-cyan" : "text-brand-pink")}>
-                            +{t.points} XP
+                          <span className={cn("font-bold text-xs", isTeamup ? "bg-gradient-to-r from-brand-cyan to-brand-pink bg-clip-text text-transparent font-extrabold" : isAjay ? "text-brand-cyan" : "text-brand-pink")}>
+                            +{t.points} XP {isTeamup ? 'EACH' : ''}
                           </span>
                         </div>
                       </div>
@@ -697,7 +735,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                             >
                               <div className="flex items-center gap-2 min-w-0">
                                 {st.completed ? (
-                                  <CheckSquare className={cn("w-3.5 h-3.5 shrink-0", isAjay ? "text-brand-cyan" : "text-brand-pink")} />
+                                  <CheckSquare className={cn("w-3.5 h-3.5 shrink-0", isTeamup ? "text-purple-400" : isAjay ? "text-brand-cyan" : "text-brand-pink")} />
                                 ) : (
                                   <Square className="w-3.5 h-3.5 stroke-[1.5] text-white/30 group-hover/sub:text-white/60 shrink-0" />
                                 )}
@@ -772,13 +810,17 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     <label className="block font-mono text-xs text-white/50 mb-1">CATEGORY</label>
                     <select 
                       value={cat} 
-                      onChange={e => setCat(e.target.value)}
+                      onChange={e => {
+                        setCat(e.target.value)
+                        if (e.target.value === 'Teamup') setDiff('Teamup')
+                      }}
                       className="w-full bg-black/60 border border-white/10 rounded-xl p-3.5 font-mono text-sm text-white/80 outline-none"
                     >
                       <option>Code</option>
                       <option>Fitness</option>
                       <option>Learning</option>
                       <option>Life</option>
+                      <option>Teamup</option>
                     </select>
                   </div>
 
@@ -795,20 +837,25 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
                 <div>
                   <label className="block font-mono text-xs text-white/50 mb-2">DIFFICULTY & XP REWARD</label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {['Easy', 'Medium', 'Hard'].map(d => (
+                  <div className="grid grid-cols-4 gap-2">
+                    {['Easy', 'Medium', 'Hard', 'Teamup'].map(d => (
                       <button
                         key={d}
                         type="button"
-                        onClick={() => setDiff(d)}
+                        onClick={() => {
+                          setDiff(d)
+                          if (d === 'Teamup') setCat('Teamup')
+                        }}
                         className={cn(
-                          "py-2.5 rounded-xl font-mono text-xs border tracking-wider transition-all",
+                          "py-2.5 rounded-xl font-mono text-[11px] border tracking-wider transition-all",
                           diff === d 
-                            ? theme === 'cyan' ? "bg-brand-cyan/20 border-brand-cyan text-brand-cyan font-bold" : "bg-brand-pink/20 border-brand-pink text-brand-pink font-bold"
+                            ? d === 'Teamup' 
+                              ? "bg-gradient-to-r from-brand-cyan/30 via-purple-600/40 to-brand-pink/30 border-purple-400 text-white font-bold shadow-[0_0_15px_rgba(233,102,255,0.4)]" 
+                              : theme === 'cyan' ? "bg-brand-cyan/20 border-brand-cyan text-brand-cyan font-bold" : "bg-brand-pink/20 border-brand-pink text-brand-pink font-bold"
                             : "border-white/10 text-white/40 hover:bg-white/5"
                         )}
                       >
-                        {d}
+                        {d === 'Teamup' ? 'Teamup (300XP)' : d}
                       </button>
                     ))}
                   </div>

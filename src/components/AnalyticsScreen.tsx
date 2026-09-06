@@ -31,7 +31,11 @@ export function AnalyticsScreen({ tasks }: AnalyticsProps) {
        const tDate = new Date(t.created_at).toDateString()
        const dayObj = last7.find(d => d.dateString === tDate)
        if (dayObj) {
-         if (t.user_id === 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88') {
+         const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
+         if (isTeamup) {
+           dayObj.Ajay += t.points
+           dayObj.Selvaa += t.points
+         } else if (t.user_id === 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88') {
            dayObj.Ajay += t.points
          } else {
            dayObj.Selvaa += t.points

@@ -27,9 +27,11 @@ export default function App() {
   const [notification, setNotification] = useState<{ id: string, msg: string } | null>(null)
   const [, setSyncTick] = useState(0)
 
-  // XP is earned ONLY when tasks are completed
-  const ajayPoints = tasks.filter(t => t.user_id === AJAY_ID && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
-  const selvaaPoints = tasks.filter(t => t.user_id === SELVAA_ID && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
+  const isTeamup = (t: Task) => t.category === 'Teamup' || t.difficulty === 'Teamup'
+
+  // XP is earned ONLY when tasks are completed (Teamup tasks yield 300 XP to BOTH players)
+  const ajayPoints = tasks.filter(t => (t.user_id === AJAY_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
+  const selvaaPoints = tasks.filter(t => (t.user_id === SELVAA_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
 
   useEffect(() => {
     async function fetchTasks() {
@@ -59,8 +61,8 @@ export default function App() {
         if (payload.eventType === 'INSERT') {
           const t = payload.new as Task
           if (t.user_id !== currentUser) {
-             const opponentName = t.user_id === AJAY_ID ? 'Ajay' : 'Selvaa'
-             setNotification({ id: Math.random().toString(), msg: `${opponentName} completed: ${t.title} (+${t.points}XP)` })
+             const opponentName = isTeamup(t) ? 'Teamup' : t.user_id === AJAY_ID ? 'Ajay' : 'Selvaa'
+             setNotification({ id: Math.random().toString(), msg: `${opponentName} directive: ${t.title} (+${t.points}XP)` })
           }
         }
       })
@@ -92,6 +94,7 @@ export default function App() {
     if (difficultyStr === 'Medium') points = 100
     if (difficultyStr === 'Hard') points = 250
     if (difficultyStr === 'Epic') points = 500
+    if (cat === 'Teamup' || difficultyStr === 'Teamup') points = 300
 
     try {
       const { data, error } = await supabase.from('tasks').insert({
@@ -135,8 +138,8 @@ export default function App() {
   const theme = currentUser === AJAY_ID ? 'cyan' : 'pink'
 
   const todayStr = new Date().toDateString()
-  const todayAjayPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && t.user_id === AJAY_ID && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
-  const todaySelvaaPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && t.user_id === SELVAA_ID && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
+  const todayAjayPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === AJAY_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
+  const todaySelvaaPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === SELVAA_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
 
   return (
     <div className="flex min-h-screen bg-black">
