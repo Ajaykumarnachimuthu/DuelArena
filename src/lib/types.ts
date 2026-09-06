@@ -1,3 +1,9 @@
+export interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: string;
   user_id: string;
@@ -6,6 +12,15 @@ export interface Task {
   points: number;
   category: 'Fitness' | 'Code' | 'Learning' | 'Life' | string;
   created_at: string;
+  // Interactive Canvas & Automation Extensions
+  position_x?: number;
+  position_y?: number;
+  connected_to?: string[]; // Task IDs connected from this node
+  subtasks?: SubTask[];
+  is_active?: boolean;
+  duration_minutes?: number;
+  start_time?: string;
+  completed?: boolean;
 }
 
 export interface PlayerStats {

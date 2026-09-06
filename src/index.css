@@ -54,6 +54,61 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* FigJam Whiteboard Blueprint Grid */
+  .blueprint-grid {
+    background-size: 32px 32px;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  }
+
+  /* Rotating Border Automation for Active Tasks */
+  .active-rotating-container {
+    position: relative;
+    border-radius: 0.75rem;
+    padding: 2px;
+    overflow: hidden;
+  }
+
+  .active-rotating-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      transparent 0deg,
+      transparent 180deg,
+      var(--active-color, #81ecff) 270deg,
+      #ffffff 360deg
+    );
+    animation: rotate-border 3s linear infinite;
+    z-index: 0;
+  }
+
+  .active-rotating-content {
+    position: relative;
+    z-index: 1;
+    border-radius: calc(0.75rem - 2px);
+  }
+
+  /* Flowline energy animation */
+  .flowline-animated {
+    stroke-dasharray: 8 6;
+    animation: dash-flow 1.5s linear infinite;
+  }
+}
+
+@keyframes rotate-border {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes dash-flow {
+  from { stroke-dashoffset: 28; }
+  to { stroke-dashoffset: 0; }
 }
 
 @keyframes rush-pulse {
@@ -71,3 +126,4 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(129, 236, 255, 0.5); }
+

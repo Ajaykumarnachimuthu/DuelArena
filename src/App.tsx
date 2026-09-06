@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './lib/supabase'
 import { Task } from './lib/types'
+import { saveTaskSubtasks, saveTaskMeta } from './lib/canvasUtils'
 import { Sidebar } from './components/Sidebar'
 import { DashboardScreen } from './components/DashboardScreen'
 import { TaskScreen } from './components/TaskScreen'
@@ -65,21 +66,44 @@ export default function App() {
     }
   }, [notification])
 
-  const handleCreateTask = async (title: string, difficultyStr: string, cat: string) => {
+  const handleCreateTask = async (
+    title: string, 
+    difficultyStr: string, 
+    cat: string, 
+    duration?: number, 
+    startTime?: string, 
+    initialSubtasks?: string[]
+  ) => {
     let points = 50
     if (difficultyStr === 'Medium') points = 100
     if (difficultyStr === 'Hard') points = 250
     if (difficultyStr === 'Epic') points = 500
 
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const { data, error } = await supabase.from('tasks').insert({
         user_id: currentUser,
         title,
         difficulty: difficultyStr,
         points,
         category: cat
-      })
+      }).select()
+
       if (error) throw error
+
+      if (data && data.length > 0) {
+        const newTask = data[0] as Task
+        if (initialSubtasks && initialSubtasks.length > 0) {
+          const subtasksObjects = initialSubtasks.map((stTitle, i) => ({
+            id: `sub_${newTask.id}_${i}`,
+            title: stTitle,
+            completed: false
+          }))
+          saveTaskSubtasks(newTask.id, subtasksObjects)
+        }
+        if (duration || startTime) {
+          saveTaskMeta(newTask.id, { duration_minutes: duration || 45, start_time: startTime || '09:00 AM' })
+        }
+      }
     } catch (e) {
        console.error('Insert failed:', e)
     }
@@ -142,7 +166,16 @@ export default function App() {
                globalRush={globalRush} 
              />
            )}
-           {currentTab === 'tasks' && <TaskScreen tasks={tasks.filter(t => t.user_id === currentUser)} points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints} onSubmit={handleCreateTask} onDelete={handleDeleteTask} theme={theme} />}
+           {currentTab === 'tasks' && (
+             <TaskScreen 
+               tasks={tasks} 
+               points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints} 
+               onSubmit={handleCreateTask} 
+               onDelete={handleDeleteTask} 
+               theme={theme} 
+               currentUser={currentUser} 
+             />
+           )}
            {currentTab === 'history' && <HistoryScreen tasks={tasks} />}
            {currentTab === 'analytics' && <AnalyticsScreen tasks={tasks} />}
            {currentTab === 'profile' && <ProfileScreen tasks={tasks} currentUser={currentUser} points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints} />}
