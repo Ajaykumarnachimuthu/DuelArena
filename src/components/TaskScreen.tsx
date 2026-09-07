@@ -13,7 +13,7 @@ import { subscribeRealtimeSync } from '../lib/realtimeSync'
 import { 
   Plus, Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
   Clock, Move, ZoomIn, ZoomOut, CheckSquare, 
-  Layout, Eye, Sparkles, X, Grid as GridIcon, Users
+  Layout, Eye, Sparkles, X, Grid as GridIcon, Users, RotateCcw
 } from 'lucide-react'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -69,10 +69,22 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   const [highlightTaskIds, setHighlightTaskIds] = useState<Record<string, boolean>>({})
   const prevTasksCountRef = useRef<number>(tasks.length)
 
-  // Canvas View transform (0.85 on mobile, 1.2 on desktop)
+  // Canvas View transform (pan X/Y + zoom)
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 0.85 : 1.2))
 
+  const panRef = useRef(pan)
+  useEffect(() => {
+    panRef.current = pan
+  }, [pan])
+
   const canvasRef = useRef<HTMLDivElement>(null)
+  const prevDistRef = useRef<number | null>(null)
+  const prevMidXRef = useRef<number | null>(null)
+  const prevMidYRef = useRef<number | null>(null)
+  const singleTouchStartRef = useRef<{ touchX: number; touchY: number; panX: number; panY: number } | null>(null)
+  const [isPanDragging, setIsPanDragging] = useState(false)
+  const panStartRef = useRef<{ x: number; y: number } | null>(null)
 
   // Detect newly added tasks and trigger 4-second highlight
   useEffect(() => {
@@ -117,22 +129,52 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     }
   }, [])
 
-  // Two-Finger Movement (Pan) and Two-Finger Pinch Zoom listener on Canvas
+  // Mouse drag panning on empty canvas background
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (target.closest('.group') || target.closest('button') || target.closest('input') || target.closest('select')) {
+      return
+    }
+    setIsPanDragging(true)
+    panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isPanDragging || !panStartRef.current) return
+    setPan({
+      x: e.clientX - panStartRef.current.x,
+      y: e.clientY - panStartRef.current.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsPanDragging(false)
+    panStartRef.current = null
+  }
+
+  // Two-Finger Movement (Pan in X & Y), Pinch Zoom, Single-Finger Touch Pan, Wheel listener
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
 
-    let prevDist: number | null = null
-    let prevMidX: number | null = null
-    let prevMidY: number | null = null
-
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
+        singleTouchStartRef.current = null
         const t1 = e.touches[0]
         const t2 = e.touches[1]
-        prevDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
-        prevMidX = (t1.clientX + t2.clientX) / 2
-        prevMidY = (t1.clientY + t2.clientY) / 2
+        prevDistRef.current = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
+        prevMidXRef.current = (t1.clientX + t2.clientX) / 2
+        prevMidYRef.current = (t1.clientY + t2.clientY) / 2
+      } else if (e.touches.length === 1) {
+        const target = e.target as HTMLElement
+        if (!target.closest('.group') && !target.closest('button') && !target.closest('input') && !target.closest('select')) {
+          singleTouchStartRef.current = {
+            touchX: e.touches[0].clientX,
+            touchY: e.touches[0].clientY,
+            panX: panRef.current.x,
+            panY: panRef.current.y
+          }
+        }
       }
     }
 
@@ -147,41 +189,50 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
         const midY = (t1.clientY + t2.clientY) / 2
 
         // Pinch Zoom
-        if (prevDist && prevDist > 0) {
-          const ratio = dist / prevDist
-          setZoom(z => Math.min(2.0, Math.max(0.5, parseFloat((z * ratio).toFixed(2)))))
+        if (prevDistRef.current && prevDistRef.current > 0) {
+          const ratio = dist / prevDistRef.current
+          setZoom(z => Math.min(2.5, Math.max(0.4, parseFloat((z * ratio).toFixed(3)))))
         }
 
-        // Two-Finger Pan Movement
-        if (prevMidX !== null && prevMidY !== null) {
-          const deltaX = midX - prevMidX
-          const deltaY = midY - prevMidY
-          el.scrollLeft -= deltaX
-          el.scrollTop -= deltaY
+        // Two-Finger Pan Movement in X and Y directions
+        if (prevMidXRef.current !== null && prevMidYRef.current !== null) {
+          const deltaX = midX - prevMidXRef.current
+          const deltaY = midY - prevMidYRef.current
+          setPan(p => ({ x: p.x + deltaX, y: p.y + deltaY }))
         }
 
-        prevDist = dist
-        prevMidX = midX
-        prevMidY = midY
+        prevDistRef.current = dist
+        prevMidXRef.current = midX
+        prevMidYRef.current = midY
+      } else if (e.touches.length === 1 && singleTouchStartRef.current) {
+        e.preventDefault()
+        const deltaX = e.touches[0].clientX - singleTouchStartRef.current.touchX
+        const deltaY = e.touches[0].clientY - singleTouchStartRef.current.touchY
+        setPan({
+          x: singleTouchStartRef.current.panX + deltaX,
+          y: singleTouchStartRef.current.panY + deltaY
+        })
       }
     }
 
     const handleTouchEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) {
-        prevDist = null
-        prevMidX = null
-        prevMidY = null
+        prevDistRef.current = null
+        prevMidXRef.current = null
+        prevMidYRef.current = null
+      }
+      if (e.touches.length === 0) {
+        singleTouchStartRef.current = null
       }
     }
 
     const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
       if (e.ctrlKey) {
-        e.preventDefault()
         const zoomDelta = -e.deltaY * 0.003
-        setZoom(z => Math.min(2.0, Math.max(0.5, parseFloat((z + zoomDelta).toFixed(2)))))
+        setZoom(z => Math.min(2.5, Math.max(0.4, parseFloat((z + zoomDelta).toFixed(3)))))
       } else {
-        el.scrollLeft += e.deltaX
-        el.scrollTop += e.deltaY
+        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
       }
     }
 
@@ -527,14 +578,33 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
             ALIGN
           </button>
 
-          {/* Zoom Controls */}
+          {/* Zoom & Reset Controls */}
           <div className="flex items-center bg-black/60 rounded-xl border border-white/10 p-0.5">
-            <button onClick={() => setZoom(z => Math.max(0.5, parseFloat((z - 0.1).toFixed(2))))} className="p-1.5 text-white/50 hover:text-white">
+            <button 
+              onClick={() => setZoom(z => Math.max(0.4, parseFloat((z - 0.1).toFixed(2))))} 
+              className="p-1.5 text-white/50 hover:text-white"
+              title="Zoom Out"
+            >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="font-mono text-[10px] px-1.5 text-white/70">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(2.0, parseFloat((z + 0.1).toFixed(2))))} className="p-1.5 text-white/50 hover:text-white">
+            <span className="font-mono text-[10px] px-1 text-white/70">{Math.round(zoom * 100)}%</span>
+            <button 
+              onClick={() => setZoom(z => Math.min(2.5, parseFloat((z + 0.1).toFixed(2))))} 
+              className="p-1.5 text-white/50 hover:text-white"
+              title="Zoom In"
+            >
               <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <div className="h-3 w-[1px] bg-white/10 my-auto mx-0.5" />
+            <button
+              onClick={() => {
+                setPan({ x: 0, y: 0 })
+                setZoom(typeof window !== 'undefined' && window.innerWidth < 640 ? 0.85 : 1.2)
+              }}
+              className="px-2 py-1 text-[10px] font-mono text-white/50 hover:text-white flex items-center gap-1"
+              title="Reset View Position & Zoom"
+            >
+              <RotateCcw className="w-3 h-3" /> RESET
             </button>
           </div>
 
@@ -579,17 +649,22 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
       {/* Main Interactive 2D Canvas Playground Area */}
       <div 
         ref={canvasRef}
-        className="relative w-full h-[650px] sm:h-[750px] rounded-3xl overflow-hidden blueprint-grid border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="relative w-full h-[650px] sm:h-[750px] rounded-3xl overflow-hidden blueprint-grid border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas cursor-grab active:cursor-grabbing select-none"
+        style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
       >
         
         {/* Canvas Background Info Overlay */}
-        <div className="absolute top-4 left-4 z-10 pointer-events-none flex items-center gap-3 font-mono text-[11px] text-white/30 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/5">
+        <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center gap-3 font-mono text-[11px] text-white/30 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/5">
           <Move className="w-3.5 h-3.5 text-brand-cyan" />
-          <span>DRAG CARDS ANYWHERE // PERSISTENT CANVAS POSITIONS</span>
+          <span>2-FINGER TOUCH / DRAG TO PAN X & Y // PINCH TO ZOOM</span>
         </div>
 
         {connectingSourceId && (
-          <div className="absolute top-4 right-4 z-10 font-mono text-xs text-amber-300 bg-amber-950/80 backdrop-blur-md px-4 py-2 rounded-xl border border-amber-500/40 animate-pulse flex items-center gap-2">
+          <div className="absolute top-4 right-4 z-20 font-mono text-xs text-amber-300 bg-amber-950/80 backdrop-blur-md px-4 py-2 rounded-xl border border-amber-500/40 animate-pulse flex items-center gap-2">
             <Sparkles className="w-4 h-4" />
             {connectingSourceId === 'SELECT_MODE' 
               ? 'Click a source task node, then click target node to draw connection flowline.'
@@ -597,132 +672,138 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           </div>
         )}
 
-        {/* SVG Flowline Layer for Task Connections */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-          <defs>
-            <linearGradient id="cyan-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#81ecff" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.8" />
-            </linearGradient>
-            <linearGradient id="pink-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#e966ff" stopOpacity="0.8" />
-              <stop offset="100%" stopColor="#a855f7" stopOpacity="0.8" />
-            </linearGradient>
-          </defs>
-
-          {visibleTasks.flatMap(t => {
-            const targets = connections[t.id] || []
-            const sourcePos = positions[t.id] || { x: 40, y: 40 }
-            const sourceOwnerIsAjay = t.user_id === AJAY_ID
-
-            // Node box dimensions: width ~ 300px, height ~ 180px
-            const sourceCenterX = (sourcePos.x + 150) * zoom
-            const sourceCenterY = (sourcePos.y + 90) * zoom
-
-            return targets.map(targetId => {
-              const targetTask = tasks.find(x => x.id === targetId)
-              if (!targetTask) return null
-
-              const targetPos = positions[targetId] || { x: 40, y: 40 }
-              const targetCenterX = (targetPos.x + 150) * zoom
-              const targetCenterY = (targetPos.y + 90) * zoom
-
-              const pathString = calculateBezierPath(sourceCenterX, sourceCenterY, targetCenterX, targetCenterY)
-              const strokeGradient = sourceOwnerIsAjay ? "url(#cyan-gradient)" : "url(#pink-gradient)"
-
-              return (
-                <g key={`${t.id}->${targetId}`}>
-                  {/* Glowing background path */}
-                  <path
-                    d={pathString}
-                    fill="none"
-                    stroke={sourceOwnerIsAjay ? "#81ecff" : "#e966ff"}
-                    strokeWidth={4}
-                    strokeOpacity={0.25}
-                  />
-                  {/* Animated energy flowline */}
-                  <path
-                    d={pathString}
-                    fill="none"
-                    stroke={strokeGradient}
-                    strokeWidth={2.5}
-                    className="flowline-animated"
-                  />
-                </g>
-              )
-            })
-          })}
-        </svg>
-
-        {/* Task Cards Node Grid Canvas */}
+        {/* Outer Transformed Container for both SVG connections & cards grid */}
         <div 
-          className="w-full h-full relative"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', transition: 'transform 0.15s ease-out' }}
+          className="w-full h-full absolute inset-0 pointer-events-none"
+          style={{ 
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, 
+            transformOrigin: '0 0',
+            transition: isPanDragging ? 'none' : 'transform 0.05s ease-out'
+          }}
         >
-          {visibleTasks.length === 0 ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 pointer-events-none">
-              <Layout className="w-12 h-12 text-white/20 mb-3" />
-              <p className="font-mono text-sm text-white/40">NO OBJECTIVES FOUND ON CANVAS</p>
-              <p className="font-mono text-xs text-white/20 mt-1">Click "NEW OBJECTIVE" to deploy a task to the playground.</p>
-            </div>
-          ) : (
-            visibleTasks.map(t => {
-              const pos = positions[t.id] || { x: 40, y: 40 }
-              const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
-              const isAjay = t.user_id === AJAY_ID
-              const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
-              const cardBorderClass = isTeamup 
-                ? 'border-purple-400/60 bg-gradient-to-br from-brand-cyan/10 via-purple-950/20 to-brand-pink/10' 
-                : isAjay ? 'border-brand-cyan/40' : 'border-brand-pink/40'
-              const cardGlowClass = isTeamup 
-                ? 'shadow-[0_0_30px_rgba(233,102,255,0.25)] shadow-[0_0_30px_rgba(129,236,255,0.25)]' 
-                : isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
-              const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
+          {/* SVG Flowline Layer for Task Connections */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">
+            <defs>
+              <linearGradient id="cyan-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#81ecff" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="pink-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#e966ff" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#a855f7" stopOpacity="0.8" />
+              </linearGradient>
+            </defs>
 
-              const subtasks = subtasksMap[t.id] || []
-              const meta = metaMap[t.id] || {}
+            {visibleTasks.flatMap(t => {
+              const targets = connections[t.id] || []
+              const sourcePos = positions[t.id] || { x: 40, y: 40 }
+              const sourceOwnerIsAjay = t.user_id === AJAY_ID
 
-              const completedSubtasksCount = subtasks.filter(st => st.completed).length
-              const totalSubtasks = subtasks.length
+              // Node box dimensions: width ~ 300px, height ~ 180px
+              const sourceCenterX = sourcePos.x + 150
+              const sourceCenterY = sourcePos.y + 90
 
-              const isCompleted = meta.completed || (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks)
-              const isActive = !isCompleted && (meta.is_active || false)
+              return targets.map(targetId => {
+                const targetTask = tasks.find(x => x.id === targetId)
+                if (!targetTask) return null
 
-              // Subtask Completion Percentage
-              let completionRatio = 0
-              if (totalSubtasks > 0) {
-                completionRatio = completedSubtasksCount / totalSubtasks
-              } else if (isCompleted) {
-                completionRatio = 1
-              }
+                const targetPos = positions[targetId] || { x: 40, y: 40 }
+                const targetCenterX = targetPos.x + 150
+                const targetCenterY = targetPos.y + 90
 
-              // Card dimensions for SVG circumference progress calculation
-              const cardWidth = 300
-              const cardHeight = 220
-              const cardRx = 12
-              const perimeter = 2 * (cardWidth + cardHeight) - 8 * cardRx + 2 * Math.PI * cardRx
-              const dashOffset = perimeter * (1 - completionRatio)
+                const pathString = calculateBezierPath(sourceCenterX, sourceCenterY, targetCenterX, targetCenterY)
+                const strokeGradient = sourceOwnerIsAjay ? "url(#cyan-gradient)" : "url(#pink-gradient)"
 
-              const flashText = flashMessageMap[t.id]
+                return (
+                  <g key={`${t.id}->${targetId}`}>
+                    {/* Glowing background path */}
+                    <path
+                      d={pathString}
+                      fill="none"
+                      stroke={sourceOwnerIsAjay ? "#81ecff" : "#e966ff"}
+                      strokeWidth={4}
+                      strokeOpacity={0.25}
+                    />
+                    {/* Animated energy flowline */}
+                    <path
+                      d={pathString}
+                      fill="none"
+                      stroke={strokeGradient}
+                      strokeWidth={2.5}
+                      className="flowline-animated"
+                    />
+                  </g>
+                )
+              })
+            })}
+          </svg>
 
-              const isNewlyCreated = highlightTaskIds[t.id] || false
-              const isSourceInConnecting = connectingSourceId === t.id
+          {/* Task Cards Node Grid Layer */}
+          <div className="w-full h-full relative pointer-events-auto">
+            {visibleTasks.length === 0 ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 pointer-events-none">
+                <Layout className="w-12 h-12 text-white/20 mb-3" />
+                <p className="font-mono text-sm text-white/40">NO OBJECTIVES FOUND ON CANVAS</p>
+                <p className="font-mono text-xs text-white/20 mt-1">Click "NEW OBJECTIVE" to deploy a task to the playground.</p>
+              </div>
+            ) : (
+              visibleTasks.map(t => {
+                const pos = positions[t.id] || { x: 40, y: 40 }
+                const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
+                const isAjay = t.user_id === AJAY_ID
+                const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
+                const cardBorderClass = isTeamup 
+                  ? 'border-purple-400/60 bg-gradient-to-br from-brand-cyan/10 via-purple-950/20 to-brand-pink/10' 
+                  : isAjay ? 'border-brand-cyan/40' : 'border-brand-pink/40'
+                const cardGlowClass = isTeamup 
+                  ? 'shadow-[0_0_30px_rgba(233,102,255,0.25)] shadow-[0_0_30px_rgba(129,236,255,0.25)]' 
+                  : isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
+                const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
 
-              return (
-                <motion.div
-                  key={t.id}
-                  drag
-                  dragMomentum={false}
-                  initial={{ x: pos.x, y: pos.y, scale: isNewlyCreated ? 0.95 : 1 }}
-                  animate={{ x: pos.x, y: pos.y, scale: 1 }}
-                  onDragEnd={(_, info) => {
-                    const newX = Math.max(10, pos.x + info.offset.x)
-                    const newY = Math.max(10, pos.y + info.offset.y)
-                    handleDragEnd(t.id, newX, newY)
-                  }}
-                  className="absolute cursor-grab active:cursor-grabbing z-10 group"
-                  style={{ width: cardWidth }}
-                >
+                const subtasks = subtasksMap[t.id] || []
+                const meta = metaMap[t.id] || {}
+
+                const completedSubtasksCount = subtasks.filter(st => st.completed).length
+                const totalSubtasks = subtasks.length
+
+                const isCompleted = meta.completed || (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks)
+                const isActive = !isCompleted && (meta.is_active || false)
+
+                // Subtask Completion Percentage
+                let completionRatio = 0
+                if (totalSubtasks > 0) {
+                  completionRatio = completedSubtasksCount / totalSubtasks
+                } else if (isCompleted) {
+                  completionRatio = 1
+                }
+
+                // Card dimensions for SVG circumference progress calculation
+                const cardWidth = 300
+                const cardHeight = 220
+                const cardRx = 12
+                const perimeter = 2 * (cardWidth + cardHeight) - 8 * cardRx + 2 * Math.PI * cardRx
+                const dashOffset = perimeter * (1 - completionRatio)
+
+                const flashText = flashMessageMap[t.id]
+
+                const isNewlyCreated = highlightTaskIds[t.id] || false
+                const isSourceInConnecting = connectingSourceId === t.id
+
+                return (
+                  <motion.div
+                    key={t.id}
+                    drag
+                    dragMomentum={false}
+                    initial={{ x: pos.x, y: pos.y, scale: isNewlyCreated ? 0.95 : 1 }}
+                    animate={{ x: pos.x, y: pos.y, scale: 1 }}
+                    onDragEnd={(_, info) => {
+                      const newX = Math.max(10, Math.round(pos.x + info.offset.x / zoom))
+                      const newY = Math.max(10, Math.round(pos.y + info.offset.y / zoom))
+                      handleDragEnd(t.id, newX, newY)
+                    }}
+                    className="absolute cursor-grab active:cursor-grabbing z-10 group"
+                    style={{ width: cardWidth }}
+                  >
                   {/* Floating Badge for Newly Created Task Node */}
                   <AnimatePresence>
                     {isNewlyCreated && (
@@ -960,6 +1041,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           )}
         </div>
       </div>
+    </div>
 
       {/* Deploy New Objective Slide-over Modal */}
       <AnimatePresence>
