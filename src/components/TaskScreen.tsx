@@ -544,8 +544,21 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
         : t.user_id === SELVAA_ID || isTeamup(t)
 
     if (!matchesUser) return false
+
     if (dateFilter === 'today') {
-      return new Date(t.created_at).toDateString() === todayStr
+      const isCreatedToday = new Date(t.created_at).toDateString() === todayStr
+      
+      const subtasks = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id] : (t.subtasks || [])
+      const meta = { completed: t.completed, is_active: t.is_active, ...metaMap[t.id] }
+      const completedSubtasksCount = subtasks.filter(st => st.completed).length
+      const totalSubtasks = subtasks.length
+      const isCompleted = totalSubtasks > 0 ? completedSubtasksCount === totalSubtasks : !!meta.completed
+      const isActive = !isCompleted && (meta.is_active || false)
+
+      // Do NOT make task vanish when day ends if active/playing OR subtasks are in progress (ticked)
+      const inProgressOrActive = !isCompleted && (isActive || completedSubtasksCount > 0)
+
+      return isCreatedToday || inProgressOrActive
     }
     return true
   })

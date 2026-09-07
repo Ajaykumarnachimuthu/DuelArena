@@ -6,6 +6,7 @@ import {
   saveTaskSubtasks, 
   saveTaskMeta, 
   isTaskCompleted, 
+  isTaskActiveOrInProgress,
   extractTaskTitleAndMeta, 
   buildTaskTitleWithMeta,
   loadTaskSubtasks,
@@ -297,7 +298,7 @@ export default function App() {
          <main className="flex-1 p-3 sm:p-6 md:p-8 pb-32 md:pb-8 overflow-y-auto relative z-10">
            {currentTab === 'dashboard' && (
              <DashboardScreen 
-               dailyTasks={tasks.filter(t => new Date(t.created_at).toDateString() === todayStr)} 
+               dailyTasks={tasks.filter(t => new Date(t.created_at).toDateString() === todayStr || isTaskActiveOrInProgress(t.id, t))} 
                totalTasks={tasks}
                ajayPoints={todayAjayPoints} 
                selvaaPoints={todaySelvaaPoints} 

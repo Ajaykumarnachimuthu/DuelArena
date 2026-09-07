@@ -209,3 +209,15 @@ export function isTaskActive(taskId: string, taskObj?: { is_active?: boolean; co
   if (meta?.is_active !== undefined) return meta.is_active
   return false
 }
+
+export function isTaskActiveOrInProgress(taskId: string, taskObj?: { is_active?: boolean; completed?: boolean; subtasks?: SubTask[] }): boolean {
+  if (isTaskCompleted(taskId, taskObj)) return false
+  if (isTaskActive(taskId, taskObj)) return true
+
+  const subtasks = (taskObj?.subtasks && taskObj.subtasks.length > 0)
+    ? taskObj.subtasks
+    : (loadTaskSubtasks()[taskId] || [])
+
+  if (subtasks.length > 0 && subtasks.some(st => st.completed)) return true
+  return false
+}
