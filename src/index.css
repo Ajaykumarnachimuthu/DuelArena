@@ -95,6 +95,25 @@
     border-radius: 12px !important;
   }
 
+  /* Active Playing Task Glow Effects (Zero layout jumps, Zero GPU flickering) */
+  .active-playing-ajay {
+    box-shadow: 0 0 30px rgba(129, 236, 255, 0.6), inset 0 0 15px rgba(129, 236, 255, 0.2) !important;
+    border-color: rgba(129, 236, 255, 0.9) !important;
+    animation: active-pulse-cyan 2s infinite alternate ease-in-out;
+  }
+
+  .active-playing-selvaa {
+    box-shadow: 0 0 30px rgba(233, 102, 255, 0.6), inset 0 0 15px rgba(233, 102, 255, 0.2) !important;
+    border-color: rgba(233, 102, 255, 0.9) !important;
+    animation: active-pulse-pink 2s infinite alternate ease-in-out;
+  }
+
+  .active-playing-teamup {
+    box-shadow: 0 0 35px rgba(233, 102, 255, 0.6), 0 0 35px rgba(129, 236, 255, 0.6), inset 0 0 20px rgba(233, 102, 255, 0.25) !important;
+    border-color: rgba(192, 132, 252, 0.9) !important;
+    animation: active-pulse-teamup 2s infinite alternate ease-in-out;
+  }
+
   /* Dual Cyan & Pink Rotating Border for Teamup Tasks & Buttons */
   .teamup-rotating-container {
     position: relative;
@@ -186,6 +205,21 @@
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
+}
+
+@keyframes active-pulse-cyan {
+  0% { box-shadow: 0 0 20px rgba(129, 236, 255, 0.4), inset 0 0 10px rgba(129, 236, 255, 0.1); }
+  100% { box-shadow: 0 0 40px rgba(129, 236, 255, 0.8), inset 0 0 25px rgba(129, 236, 255, 0.3); }
+}
+
+@keyframes active-pulse-pink {
+  0% { box-shadow: 0 0 20px rgba(233, 102, 255, 0.4), inset 0 0 10px rgba(233, 102, 255, 0.1); }
+  100% { box-shadow: 0 0 40px rgba(233, 102, 255, 0.8), inset 0 0 25px rgba(233, 102, 255, 0.3); }
+}
+
+@keyframes active-pulse-teamup {
+  0% { box-shadow: 0 0 25px rgba(233, 102, 255, 0.4), 0 0 25px rgba(129, 236, 255, 0.4); }
+  100% { box-shadow: 0 0 45px rgba(233, 102, 255, 0.85), 0 0 45px rgba(129, 236, 255, 0.85); }
 }
 
 /* Custom scrollbar for cyber aesthetic */

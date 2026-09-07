@@ -836,7 +836,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 const pos = positions[t.id] || t.pos || { x: 40, y: 40 }
                 const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
                 const isAjay = t.user_id === AJAY_ID
-                const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
                 const cardBorderClass = isTeamup 
                   ? 'border-purple-400/60 bg-gradient-to-br from-brand-cyan/10 via-purple-950/20 to-brand-pink/10' 
                   : isAjay 
@@ -875,15 +874,9 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   completionRatio = 1
                 }
 
-                // Card dimensions for SVG circumference progress calculation
-                const cardWidth = 300
-                const cardHeight = 220
-                const strokeW = 3
-                const rectW = cardWidth - strokeW
-                const rectH = cardHeight - strokeW
-                const cardRx = 12
-                const perimeter = 2 * (rectW + rectH) - 8 * cardRx + 2 * Math.PI * cardRx
-                const dashOffset = perimeter * (1 - completionRatio)
+                const activePlayingClass = isActive 
+                  ? (isTeamup ? "active-playing-teamup" : isAjay ? "active-playing-ajay" : "active-playing-selvaa")
+                  : ""
 
                 const isNewlyCreated = highlightTaskIds[t.id] || false
                 const isSourceInConnecting = connectingSourceId === t.id
@@ -901,7 +894,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       handleDragEnd(t.id, newX, newY)
                     }}
                     className="absolute cursor-grab active:cursor-grabbing z-10 group"
-                    style={{ width: cardWidth }}
+                    style={{ width: 300 }}
                   >
                   {/* Floating Badge for Newly Created Task Node */}
                   <AnimatePresence>
@@ -918,58 +911,46 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     )}
                   </AnimatePresence>
 
-                  {/* Rotating Active / Teamup Highlight Border Wrapper */}
-                  <div 
-                    className={cn(
-                      isNewlyCreated 
-                        ? "newly-created-highlight-container" 
-                        : (isActive && isTeamup) 
-                          ? "teamup-rotating-container" 
-                          : isActive
-                            ? "active-rotating-container"
-                            : ""
+                  {/* Task Card Node Body (Stable Layout without padding jumps) */}
+                  <div className={cn(
+                    "relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300 overflow-hidden",
+                    isCompleted 
+                      ? (isTeamup 
+                          ? "border-purple-400/80 bg-gradient-to-br from-brand-cyan/20 via-purple-950/30 to-brand-pink/20 shadow-[0_0_30px_rgba(233,102,255,0.4)] shadow-[0_0_30px_rgba(129,236,255,0.4)]" 
+                          : isAjay 
+                            ? "border-brand-cyan/60 bg-brand-cyan/15 shadow-[0_0_25px_rgba(129,236,255,0.3)]" 
+                            : "border-brand-pink/60 bg-brand-pink/15 shadow-[0_0_25px_rgba(233,102,255,0.3)]")
+                      : cardBorderClass,
+                    isActive ? activePlayingClass : (!isCompleted && cardGlowClass),
+                    isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
+                  )}>
+                    
+                    {/* SVG Circumference Progress Overlay around entire card border (Only when completionRatio > 0) */}
+                    {completionRatio > 0 && (
+                      <svg 
+                        className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden rounded-xl"
+                        style={{ zIndex: 10 }}
+                      >
+                        <rect
+                          x="1.5"
+                          y="1.5"
+                          width="calc(100% - 3px)"
+                          height="calc(100% - 3px)"
+                          rx="12"
+                          fill="none"
+                          stroke={isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'}
+                          strokeWidth="3"
+                          pathLength="100"
+                          strokeDasharray="100"
+                          strokeDashoffset={100 * (1 - completionRatio)}
+                          strokeLinecap="round"
+                          style={{
+                            transition: 'stroke-dashoffset 0.4s ease-out, stroke 0.3s ease',
+                            filter: `drop-shadow(0 0 6px ${isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'})`
+                          }}
+                        />
+                      </svg>
                     )}
-                    style={{ '--active-color': cardThemeColor } as React.CSSProperties}
-                  >
-                    <div className={cn(
-                      "active-rotating-content relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300",
-                      isCompleted 
-                        ? (isTeamup 
-                            ? "border-purple-400/80 bg-gradient-to-br from-brand-cyan/20 via-purple-950/30 to-brand-pink/20 shadow-[0_0_30px_rgba(233,102,255,0.4)] shadow-[0_0_30px_rgba(129,236,255,0.4)]" 
-                            : isAjay 
-                              ? "border-brand-cyan/60 bg-brand-cyan/15 shadow-[0_0_25px_rgba(129,236,255,0.3)]" 
-                              : "border-brand-pink/60 bg-brand-pink/15 shadow-[0_0_25px_rgba(233,102,255,0.3)]")
-                        : cardBorderClass,
-                      !isCompleted && cardGlowClass,
-                      isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
-                    )}>
-                      
-                      {/* SVG Circumference Progress Overlay around entire card border (Only when completionRatio > 0) */}
-                      {completionRatio > 0 && (
-                        <svg 
-                          viewBox={`0 0 ${cardWidth} ${cardHeight}`}
-                          className="absolute inset-0 w-full h-full pointer-events-none overflow-visible rounded-xl"
-                          style={{ zIndex: 2 }}
-                        >
-                          <rect
-                            x={strokeW / 2}
-                            y={strokeW / 2}
-                            width={rectW}
-                            height={rectH}
-                            rx={cardRx}
-                            fill="none"
-                            stroke={isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'}
-                            strokeWidth={strokeW}
-                            strokeDasharray={perimeter}
-                            strokeDashoffset={dashOffset}
-                            strokeLinecap="round"
-                            style={{
-                              transition: 'stroke-dashoffset 0.4s ease-out, stroke 0.3s ease',
-                              filter: `drop-shadow(0 0 8px ${isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'})`
-                            }}
-                          />
-                        </svg>
-                      )}
 
                       {/* Card Header: Owner Badge & Active/Connect Controls */}
                       <div className="flex items-center justify-between mb-3 relative z-10">
@@ -1143,7 +1124,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       </div>
 
                     </div>
-                  </div>
                 </motion.div>
               )
             })
