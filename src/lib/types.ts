@@ -24,6 +24,17 @@ export interface Task {
   pos?: { x: number; y: number };
 }
 
+export interface EventItem {
+  id: string;
+  user_id: string;
+  title: string;
+  link?: string;
+  deadline: string; // YYYY-MM-DD
+  completed: boolean;
+  created_at: string;
+  category?: string;
+}
+
 export interface PlayerStats {
   id: string;
   name: string;

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Target, BarChart2, Crown, Archive, UserCircle2, Zap } from 'lucide-react'
+import { LayoutDashboard, Target, BarChart2, Crown, Archive, UserCircle2, Zap, Calendar } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
 
@@ -16,6 +16,7 @@ export function BottomNav({ currentTab, setTab, theme, currentUser, setCurrentUs
   const tabs = [
     { id: 'dashboard', icon: LayoutDashboard },
     { id: 'tasks', icon: Target },
+    { id: 'events', icon: Calendar },
     { id: 'history', icon: Archive },
     { id: 'analytics', icon: BarChart2 },
     { id: 'profile', icon: UserCircle2 },

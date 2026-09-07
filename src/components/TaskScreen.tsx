@@ -894,7 +894,10 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 const completedSubtasksCount = subtasks.filter(st => st.completed).length
                 const totalSubtasks = subtasks.length
 
-                const isCompleted = meta.completed || (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks)
+                const isCompleted = totalSubtasks > 0 
+                  ? completedSubtasksCount === totalSubtasks 
+                  : !!meta.completed
+
                 const isActive = !isCompleted && (meta.is_active || false)
 
                 // Subtask Completion Percentage
@@ -947,21 +950,29 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     )}
                   </AnimatePresence>
 
-                  {/* Rotating Active / Newly Created Highlight Border Wrapper */}
+                  {/* Rotating Active / Teamup Completed Highlight Border Wrapper */}
                   <div 
                     className={cn(
                       isNewlyCreated 
                         ? "newly-created-highlight-container" 
-                        : isActive 
-                          ? (isTeamup ? "teamup-rotating-container" : "active-rotating-container") 
-                          : ""
+                        : (isActive || (isCompleted && isTeamup)) 
+                          ? "teamup-rotating-container" 
+                          : isActive
+                            ? "active-rotating-container"
+                            : ""
                     )}
                     style={{ '--active-color': cardThemeColor } as React.CSSProperties}
                   >
                     <div className={cn(
                       "active-rotating-content relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300",
-                      isCompleted ? "border-emerald-500/50 bg-emerald-950/10 shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardBorderClass,
-                      isCompleted ? "shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardGlowClass,
+                      isCompleted 
+                        ? (isTeamup 
+                            ? "border-purple-400/80 bg-gradient-to-br from-brand-cyan/20 via-purple-950/30 to-brand-pink/20 shadow-[0_0_30px_rgba(233,102,255,0.4)] shadow-[0_0_30px_rgba(129,236,255,0.4)]" 
+                            : isAjay 
+                              ? "border-brand-cyan/60 bg-brand-cyan/10 shadow-[0_0_25px_rgba(129,236,255,0.3)]" 
+                              : "border-brand-pink/60 bg-brand-pink/10 shadow-[0_0_25px_rgba(233,102,255,0.3)]")
+                        : cardBorderClass,
+                      !isCompleted && cardGlowClass,
                       isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
                     )}>
                       
@@ -978,14 +989,14 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                             height="100%"
                             rx="12"
                             fill="none"
-                            stroke={isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor}
+                            stroke={isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'}
                             strokeWidth="3"
                             strokeDasharray={perimeter}
                             strokeDashoffset={dashOffset}
                             strokeLinecap="round"
                             style={{
                               transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
-                              filter: `drop-shadow(0 0 8px ${isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor})`
+                              filter: `drop-shadow(0 0 8px ${isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'})`
                             }}
                           />
                         </svg>
@@ -995,8 +1006,15 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       <div className="flex items-center justify-between mb-3 relative z-10">
                         <div className="flex items-center gap-2">
                           {isCompleted ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> COMPLETED
+                            <span className={cn(
+                              "px-2 py-0.5 rounded text-[10px] font-mono uppercase font-extrabold flex items-center gap-1 shadow-lg",
+                              isTeamup
+                                ? "bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border border-purple-400/60 shadow-[0_0_15px_rgba(233,102,255,0.4)]"
+                                : isAjay
+                                  ? "bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/50 shadow-[0_0_12px_rgba(129,236,255,0.3)]"
+                                  : "bg-brand-pink/20 text-brand-pink border border-brand-pink/50 shadow-[0_0_12px_rgba(233,102,255,0.3)]"
+                            )}>
+                              <CheckCircle2 className="w-3.5 h-3.5 fill-current" /> COMPLETED
                             </span>
                           ) : isTeamup ? (
                             <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-extrabold bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border-white/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(233,102,255,0.3)]">

@@ -1,4 +1,4 @@
-import { UserCircle2, Zap, Trophy, LayoutDashboard, Target, Archive, BarChart2, Crown } from 'lucide-react'
+import { UserCircle2, Zap, Trophy, LayoutDashboard, Target, Archive, BarChart2, Crown, Calendar } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface MobileHeaderProps {
@@ -28,6 +28,7 @@ export function MobileHeader({
   const titles: Record<string, { label: string; icon: any }> = {
     dashboard: { label: 'ARENA_COMMAND', icon: LayoutDashboard },
     tasks: { label: 'TASK_WHITEBOARD', icon: Target },
+    events: { label: 'EVENT_DIRECTIVES', icon: Calendar },
     history: { label: 'COMBAT_LOGS', icon: Archive },
     analytics: { label: 'TELEMETRY', icon: BarChart2 },
     profile: { label: 'OPERATOR_MATRIX', icon: UserCircle2 },

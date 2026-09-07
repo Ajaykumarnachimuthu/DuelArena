@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './lib/supabase'
-import { Task } from './lib/types'
+import { Task, EventItem } from './lib/types'
 import { 
   saveTaskSubtasks, 
   saveTaskMeta, 
@@ -17,6 +17,7 @@ import { subscribeRealtimeSync } from './lib/realtimeSync'
 import { Sidebar } from './components/Sidebar'
 import { DashboardScreen } from './components/DashboardScreen'
 import { TaskScreen } from './components/TaskScreen'
+import { EventsScreen } from './components/EventsScreen'
 import { AnalyticsScreen } from './components/AnalyticsScreen'
 import { ChampionScreen } from './components/ChampionScreen'
 import { HistoryScreen } from './components/HistoryScreen'
@@ -29,9 +30,19 @@ import { BellRing } from 'lucide-react'
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
 const SELVAA_ID = '7d01b3e6-3d10-41fe-a22d-1c26d43de0df'
 
+const EVENTS_KEY = 'habit_arena_events_v1'
+
 export default function App() {
   const [currentTab, setTab] = useState('dashboard')
-  const [tasks, setTasks] = useState<Task[]>([]) 
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [events, setEvents] = useState<EventItem[]>(() => {
+    try {
+      const raw = localStorage.getItem(EVENTS_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch (e) {
+      return []
+    }
+  })
   const [currentUser, setCurrentUser] = useState(AJAY_ID)
   const [globalRush, setGlobalRush] = useState(false)
   const [notification, setNotification] = useState<{ id: string, msg: string } | null>(null)
@@ -193,6 +204,47 @@ export default function App() {
     }
   }
 
+  // Event Session Handlers
+  const handleCreateEvent = (title: string, deadline: string, link?: string, category?: string, userId?: string) => {
+    const newEv: EventItem = {
+      id: `ev_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      user_id: userId || currentUser,
+      title,
+      deadline,
+      link,
+      category: category || 'Event',
+      completed: false,
+      created_at: new Date().toISOString()
+    }
+    setEvents(prev => {
+      const updated = [newEv, ...prev]
+      try {
+        localStorage.setItem(EVENTS_KEY, JSON.stringify(updated))
+      } catch (e) {}
+      return updated
+    })
+  }
+
+  const handleToggleEvent = (id: string) => {
+    setEvents(prev => {
+      const updated = prev.map(ev => ev.id === id ? { ...ev, completed: !ev.completed } : ev)
+      try {
+        localStorage.setItem(EVENTS_KEY, JSON.stringify(updated))
+      } catch (e) {}
+      return updated
+    })
+  }
+
+  const handleDeleteEvent = (id: string) => {
+    setEvents(prev => {
+      const updated = prev.filter(ev => ev.id !== id)
+      try {
+        localStorage.setItem(EVENTS_KEY, JSON.stringify(updated))
+      } catch (e) {}
+      return updated
+    })
+  }
+
   const theme = currentUser === AJAY_ID ? 'cyan' : 'pink'
 
   const todayStr = new Date().toDateString()
@@ -260,6 +312,16 @@ export default function App() {
                onDelete={handleDeleteTask} 
                theme={theme} 
                currentUser={currentUser} 
+             />
+           )}
+           {currentTab === 'events' && (
+             <EventsScreen
+               events={events}
+               onSubmit={handleCreateEvent}
+               onToggle={handleToggleEvent}
+               onDelete={handleDeleteEvent}
+               theme={theme}
+               currentUser={currentUser}
              />
            )}
            {currentTab === 'history' && <HistoryScreen tasks={tasks} />}

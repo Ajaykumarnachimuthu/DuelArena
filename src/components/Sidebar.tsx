@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { LayoutDashboard, Target, BarChart2, Crown, ChevronRight, Archive, UserCircle2, Zap } from 'lucide-react'
+import { LayoutDashboard, Target, BarChart2, Crown, ChevronRight, Archive, UserCircle2, Zap, Calendar } from 'lucide-react'
 import { cn } from '../lib/utils'
 
 interface SidebarProps {
@@ -17,6 +17,7 @@ export function Sidebar({ currentTab, setTab, points, theme, currentUser, setCur
   const tabs = [
     { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
     { id: 'tasks', label: 'TASKS', icon: Target },
+    { id: 'events', label: 'EVENTS', icon: Calendar },
     { id: 'history', label: 'HISTORY', icon: Archive },
     { id: 'analytics', label: 'ANALYTICS', icon: BarChart2 },
     { id: 'profile', label: 'PERSONAL', icon: UserCircle2 },
