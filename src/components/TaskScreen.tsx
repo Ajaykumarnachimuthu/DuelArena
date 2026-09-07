@@ -382,6 +382,23 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     triggerPercentageFlash(taskId, updatedSubtasks)
   }
 
+  // Handle subtask deletion
+  const handleDeleteSubtask = (taskId: string, subtaskId: string) => {
+    const currentSubtasks = subtasksMap[taskId] || []
+    const updatedSubtasks = currentSubtasks.filter(st => st.id !== subtaskId)
+    const newMap = { ...subtasksMap, [taskId]: updatedSubtasks }
+    setSubtasksMap(newMap)
+    saveTaskSubtasks(taskId, updatedSubtasks)
+
+    const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed)
+    const currentMeta = metaMap[taskId] || {}
+    if (allCompleted && !currentMeta.completed) {
+      const updatedMeta = { ...currentMeta, completed: true, is_active: false }
+      setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
+      saveTaskMeta(taskId, updatedMeta)
+    }
+  }
+
   // Trigger smooth in-grid percentage flash transition
   const triggerPercentageFlash = (taskId: string, subtasksList: SubTask[]) => {
     if (subtasksList.length === 0) return
@@ -882,29 +899,31 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
                     )}>
                       
-                      {/* SVG Circumference Progress Overlay around entire card border */}
-                      <svg 
-                        className="absolute inset-0 w-full h-full pointer-events-none overflow-visible rounded-xl"
-                        style={{ zIndex: 2 }}
-                      >
-                        <rect
-                          x="0"
-                          y="0"
-                          width="100%"
-                          height="100%"
-                          rx="12"
-                          fill="none"
-                          stroke={isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor}
-                          strokeWidth="3"
-                          strokeDasharray={perimeter}
-                          strokeDashoffset={dashOffset}
-                          strokeLinecap="round"
-                          style={{
-                            transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
-                            filter: completionRatio > 0 ? `drop-shadow(0 0 8px ${isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor})` : 'none'
-                          }}
-                        />
-                      </svg>
+                      {/* SVG Circumference Progress Overlay around entire card border (Only when completionRatio > 0) */}
+                      {completionRatio > 0 && (
+                        <svg 
+                          className="absolute inset-0 w-full h-full pointer-events-none overflow-visible rounded-xl"
+                          style={{ zIndex: 2 }}
+                        >
+                          <rect
+                            x="0"
+                            y="0"
+                            width="100%"
+                            height="100%"
+                            rx="12"
+                            fill="none"
+                            stroke={isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor}
+                            strokeWidth="3"
+                            strokeDasharray={perimeter}
+                            strokeDashoffset={dashOffset}
+                            strokeLinecap="round"
+                            style={{
+                              transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
+                              filter: `drop-shadow(0 0 8px ${isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor})`
+                            }}
+                          />
+                        </svg>
+                      )}
 
                       {/* Card Header: Owner Badge & Active/Connect Controls */}
                       <div className="flex items-center justify-between mb-3 relative z-10">
@@ -1027,38 +1046,59 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       </div>
 
                       {/* Subtasks Checklist Section */}
-                      <div className="space-y-1.5 max-h-[85px] overflow-y-auto hide-scrollbar relative z-10 mb-2">
-                        {subtasks.length === 0 ? (
-                          <div className="flex items-center justify-between text-[11px] font-mono text-white/30 py-1">
-                            <span>No subtasks assigned</span>
-                            <button
-                              onClick={() => handleToggleComplete(t.id)}
-                              className="flex items-center gap-1 text-[10px] text-brand-cyan hover:underline"
-                            >
-                              {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-cyan" /> : <Circle className="w-3.5 h-3.5" />}
-                              {isCompleted ? 'COMPLETED' : 'MARK DONE'}
-                            </button>
-                          </div>
-                        ) : (
-                          subtasks.map(st => (
-                            <button
-                              key={st.id}
-                              onClick={(e) => { e.stopPropagation(); handleToggleSubtask(t.id, st.id) }}
-                              className="w-full flex items-center justify-between text-left p-1 rounded hover:bg-white/5 transition-colors group/sub"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                {st.completed ? (
-                                  <CheckSquare className={cn("w-3.5 h-3.5 shrink-0", isTeamup ? "text-purple-400" : isAjay ? "text-brand-cyan" : "text-brand-pink")} />
-                                ) : (
-                                  <Square className="w-3.5 h-3.5 stroke-[1.5] text-white/30 group-hover/sub:text-white/60 shrink-0" />
-                                )}
-                                <span className={cn("font-mono text-[11px] truncate", st.completed ? "line-through text-white/30" : "text-white/80")}>
-                                  {st.title}
-                                </span>
+                      <div className="relative z-10 mb-2">
+                        <div className="flex items-center justify-between font-mono text-[9px] text-white/40 mb-1.5 uppercase tracking-wider">
+                          <span>SUBTASKS ({completedSubtasksCount}/{totalSubtasks})</span>
+                          {totalSubtasks > 0 && (
+                            <span className={cn("font-bold", completionRatio === 1 ? "text-emerald-400" : "text-amber-300")}>
+                              {Math.round(completionRatio * 100)}%
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/20">
+                          {subtasks.length === 0 ? (
+                            <div className="flex items-center justify-between text-[11px] font-mono text-white/30 py-1">
+                              <span>No subtasks assigned</span>
+                              <button
+                                onClick={() => handleToggleComplete(t.id)}
+                                className="flex items-center gap-1 text-[10px] text-brand-cyan hover:underline"
+                              >
+                                {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-cyan" /> : <Circle className="w-3.5 h-3.5" />}
+                                {isCompleted ? 'COMPLETED' : 'MARK DONE'}
+                              </button>
+                            </div>
+                          ) : (
+                            subtasks.map(st => (
+                              <div
+                                key={st.id}
+                                className="w-full flex items-center justify-between text-left p-1 rounded hover:bg-white/5 transition-colors group/sub"
+                              >
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleToggleSubtask(t.id, st.id) }}
+                                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
+                                >
+                                  {st.completed ? (
+                                    <CheckSquare className={cn("w-3.5 h-3.5 shrink-0", isTeamup ? "text-purple-400" : isAjay ? "text-brand-cyan" : "text-brand-pink")} />
+                                  ) : (
+                                    <Square className="w-3.5 h-3.5 stroke-[1.5] text-white/30 group-hover/sub:text-white/60 shrink-0" />
+                                  )}
+                                  <span className={cn("font-mono text-[11px] truncate", st.completed ? "line-through text-white/30" : "text-white/80")}>
+                                    {st.title}
+                                  </span>
+                                </button>
+
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteSubtask(t.id, st.id) }}
+                                  className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-white/30 hover:text-red-400 transition-opacity ml-1 shrink-0"
+                                  title="Delete Subtask"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
                               </div>
-                            </button>
-                          ))
-                        )}
+                            ))
+                          )}
+                        </div>
                       </div>
 
                       {/* Add Subtask Quick Input */}
