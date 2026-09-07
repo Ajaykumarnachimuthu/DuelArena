@@ -155,12 +155,40 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     panStartRef.current = null
   }
 
-  // Two-Finger Movement (Pan in X & Y), Pinch Zoom, Single-Finger Touch Pan, Wheel listener
+  const touchSubtaskScrollRef = useRef<{
+    element: HTMLElement
+    initialMidY: number
+    initialScrollTop: number
+  } | null>(null)
+
+  // Two-Finger Movement (Pan in X & Y), Pinch Zoom, Single-Finger Touch Pan, Subtask 2-Finger Swipe, Wheel listener
   useEffect(() => {
     const el = canvasRef.current
     if (!el) return
 
     const handleTouchStart = (e: TouchEvent) => {
+      const target = e.target as HTMLElement
+      const subtaskContainer = target.closest('.subtask-scroll-area') as HTMLElement
+
+      if (subtaskContainer) {
+        const midY = e.touches.length === 2 
+          ? (e.touches[0].clientY + e.touches[1].clientY) / 2 
+          : e.touches[0].clientY
+
+        touchSubtaskScrollRef.current = {
+          element: subtaskContainer,
+          initialMidY: midY,
+          initialScrollTop: subtaskContainer.scrollTop
+        }
+        singleTouchStartRef.current = null
+        prevDistRef.current = null
+        prevMidXRef.current = null
+        prevMidYRef.current = null
+        return
+      }
+
+      touchSubtaskScrollRef.current = null
+
       if (e.touches.length === 2) {
         singleTouchStartRef.current = null
         const t1 = e.touches[0]
@@ -169,7 +197,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
         prevMidXRef.current = (t1.clientX + t2.clientX) / 2
         prevMidYRef.current = (t1.clientY + t2.clientY) / 2
       } else if (e.touches.length === 1) {
-        const target = e.target as HTMLElement
         if (!target.closest('.group') && !target.closest('button') && !target.closest('input') && !target.closest('select')) {
           singleTouchStartRef.current = {
             touchX: e.touches[0].clientX,
@@ -182,6 +209,18 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     }
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (touchSubtaskScrollRef.current) {
+        e.preventDefault()
+        e.stopPropagation()
+        const currentMidY = e.touches.length === 2
+          ? (e.touches[0].clientY + e.touches[1].clientY) / 2
+          : e.touches[0].clientY
+
+        const deltaY = currentMidY - touchSubtaskScrollRef.current.initialMidY
+        touchSubtaskScrollRef.current.element.scrollTop = touchSubtaskScrollRef.current.initialScrollTop - deltaY
+        return
+      }
+
       if (e.touches.length === 2) {
         e.preventDefault()
 
@@ -219,17 +258,22 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     }
 
     const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length === 0) {
+        touchSubtaskScrollRef.current = null
+        singleTouchStartRef.current = null
+      }
       if (e.touches.length < 2) {
         prevDistRef.current = null
         prevMidXRef.current = null
         prevMidYRef.current = null
       }
-      if (e.touches.length === 0) {
-        singleTouchStartRef.current = null
-      }
     }
 
     const handleWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement
+      if (target.closest('.subtask-scroll-area')) {
+        return
+      }
       e.preventDefault()
       if (e.ctrlKey) {
         const zoomDelta = -e.deltaY * 0.003
