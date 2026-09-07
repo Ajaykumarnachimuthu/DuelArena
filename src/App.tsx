@@ -40,8 +40,8 @@ export default function App() {
   const isTeamup = (t: Task) => t.category === 'Teamup' || t.difficulty === 'Teamup'
 
   // XP is earned ONLY when tasks are completed (Teamup tasks yield 300 XP to BOTH players)
-  const ajayPoints = tasks.filter(t => (t.user_id === AJAY_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
-  const selvaaPoints = tasks.filter(t => (t.user_id === SELVAA_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((sum, t) => sum + t.points, 0) || 0
+  const ajayPoints = tasks.filter(t => (t.user_id === AJAY_ID || isTeamup(t)) && isTaskCompleted(t.id, t)).reduce((sum, t) => sum + t.points, 0) || 0
+  const selvaaPoints = tasks.filter(t => (t.user_id === SELVAA_ID || isTeamup(t)) && isTaskCompleted(t.id, t)).reduce((sum, t) => sum + t.points, 0) || 0
 
   useEffect(() => {
     async function fetchTasks() {
@@ -196,8 +196,8 @@ export default function App() {
   const theme = currentUser === AJAY_ID ? 'cyan' : 'pink'
 
   const todayStr = new Date().toDateString()
-  const todayAjayPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === AJAY_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
-  const todaySelvaaPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === SELVAA_ID || isTeamup(t)) && isTaskCompleted(t.id)).reduce((s, t) => s + t.points, 0) || 0
+  const todayAjayPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === AJAY_ID || isTeamup(t)) && isTaskCompleted(t.id, t)).reduce((s, t) => s + t.points, 0) || 0
+  const todaySelvaaPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === SELVAA_ID || isTeamup(t)) && isTaskCompleted(t.id, t)).reduce((s, t) => s + t.points, 0) || 0
 
   return (
     <div className="flex min-h-screen bg-black">

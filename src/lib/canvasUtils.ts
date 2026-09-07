@@ -186,18 +186,25 @@ export function saveTaskMeta(taskId: string, meta: TaskMeta): void {
 }
 
 // Global Task Status helper queries
-export function isTaskCompleted(taskId: string, taskObj?: { completed?: boolean }): boolean {
-  if (taskObj?.completed) return true
+export function isTaskCompleted(taskId: string, taskObj?: { completed?: boolean; subtasks?: SubTask[] }): boolean {
+  if (taskObj?.completed !== undefined && taskObj.completed) return true
+  
   const meta = loadTaskMeta()[taskId]
   if (meta?.completed) return true
-  const subtasks = loadTaskSubtasks()[taskId] || []
+
+  const subtasks = (taskObj?.subtasks && taskObj.subtasks.length > 0)
+    ? taskObj.subtasks
+    : (loadTaskSubtasks()[taskId] || [])
+
   if (subtasks.length > 0 && subtasks.every(st => st.completed)) return true
   return false
 }
 
-export function isTaskActive(taskId: string, taskObj?: { is_active?: boolean; completed?: boolean }): boolean {
+export function isTaskActive(taskId: string, taskObj?: { is_active?: boolean; completed?: boolean; subtasks?: SubTask[] }): boolean {
   if (isTaskCompleted(taskId, taskObj)) return false
-  if (taskObj?.is_active) return true
+  if (taskObj?.is_active !== undefined && taskObj.is_active) return true
+  
   const meta = loadTaskMeta()[taskId]
-  return !!meta?.is_active
+  if (meta?.is_active !== undefined) return meta.is_active
+  return false
 }

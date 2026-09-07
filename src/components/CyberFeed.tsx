@@ -22,8 +22,8 @@ export function CyberFeed({ tasks }: { tasks: Task[] }) {
             const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
             const isAjay = t.user_id === 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
             const Ico = IC[t.category as keyof typeof IC] || Zap
-            const active = isTaskActive(t.id)
-            const completed = isTaskCompleted(t.id)
+            const active = isTaskActive(t.id, t)
+            const completed = isTaskCompleted(t.id, t)
 
             return (
               <motion.div 

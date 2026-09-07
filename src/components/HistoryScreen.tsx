@@ -58,8 +58,8 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
         const dayTasks = grouped[dateStr]
         const ajays = dayTasks.filter(t => t.user_id === AJAY_ID || isTeamup(t))
         const selvaas = dayTasks.filter(t => t.user_id === SELVAA_ID || isTeamup(t))
-        const ajayXP = ajays.filter(t => isTaskCompleted(t.id)).reduce((s,t) => s + t.points, 0)
-        const selvaaXP = selvaas.filter(t => isTaskCompleted(t.id)).reduce((s,t) => s + t.points, 0)
+        const ajayXP = ajays.filter(t => isTaskCompleted(t.id, t)).reduce((s,t) => s + t.points, 0)
+        const selvaaXP = selvaas.filter(t => isTaskCompleted(t.id, t)).reduce((s,t) => s + t.points, 0)
 
         const winner = ajayXP > selvaaXP ? 'AJAY' : selvaaXP > ajayXP ? 'SELVAA' : 'DRAW'
 
@@ -93,8 +93,8 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                   <div className="space-y-3">
                     {ajays.length === 0 && <div className="text-xs font-mono text-white/20">NO OPS LOGGED.</div>}
                     {ajays.map(t => {
-                      const active = isTaskActive(t.id)
-                      const completed = isTaskCompleted(t.id)
+                      const active = isTaskActive(t.id, t)
+                      const completed = isTaskCompleted(t.id, t)
                       return (
                         <div key={t.id} className="flex justify-between items-center bg-brand-cyan/5 p-3.5 rounded-xl border border-brand-cyan/10 hover:bg-brand-cyan/10 transition-colors">
                           <div className="flex items-center gap-3">
@@ -142,8 +142,8 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                 <div className="space-y-3">
                   {selvaas.length === 0 && <div className="text-xs font-mono text-white/20">NO OPS LOGGED.</div>}
                   {selvaas.map(t => {
-                    const active = isTaskActive(t.id)
-                    const completed = isTaskCompleted(t.id)
+                    const active = isTaskActive(t.id, t)
+                    const completed = isTaskCompleted(t.id, t)
                     return (
                       <div key={t.id} className="flex justify-between items-center bg-brand-pink/5 p-3.5 rounded-xl border border-brand-pink/10 hover:bg-brand-pink/10 transition-colors">
                         <div className="flex items-center gap-3">
