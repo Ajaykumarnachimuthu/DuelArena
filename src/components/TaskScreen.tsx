@@ -39,6 +39,9 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   // Filter state: 'all' | 'ajay' | 'selvaa'
   const [filterUser, setFilterUser] = useState<'all' | 'ajay' | 'selvaa'>('all')
 
+  // Date Scope Filter state: 'today' | 'all'
+  const [dateFilter, setDateFilter] = useState<'today' | 'all'>('today')
+
   // Connection linking mode state: source task ID
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null)
 
@@ -491,11 +494,20 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     onDelete(id)
   }
 
-  // Filtered tasks
+  // Filtered tasks by user and daily scope
+  const todayStr = new Date().toDateString()
   const isTeamup = (t: Task) => t.category === 'Teamup' || t.difficulty === 'Teamup'
   const visibleTasks = tasks.filter(t => {
-    if (filterUser === 'ajay') return t.user_id === AJAY_ID || isTeamup(t)
-    if (filterUser === 'selvaa') return t.user_id === SELVAA_ID || isTeamup(t)
+    const matchesUser = filterUser === 'all' 
+      ? true 
+      : filterUser === 'ajay' 
+        ? t.user_id === AJAY_ID || isTeamup(t) 
+        : t.user_id === SELVAA_ID || isTeamup(t)
+
+    if (!matchesUser) return false
+    if (dateFilter === 'today') {
+      return new Date(t.created_at).toDateString() === todayStr
+    }
     return true
   })
 
@@ -516,6 +528,32 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
               <h2 className="text-xs sm:text-sm font-display tracking-widest text-white leading-tight">OBJECTIVES_PLAYGROUND</h2>
               <p className="text-[9px] font-mono text-white/40 leading-none">INTERACTIVE TASK MAP & WHITEBOARD</p>
             </div>
+          </div>
+
+          <div className="h-5 w-[1px] bg-white/10 hidden sm:block" />
+
+          {/* Day Scope Filter Toggle */}
+          <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10">
+            <button 
+              onClick={() => setDateFilter('today')}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                dateFilter === 'today' ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold" : "text-white/40 hover:text-white"
+              )}
+              title="Show directives for today's active daily session"
+            >
+              <Clock className="w-3 h-3" /> TODAY
+            </button>
+            <button 
+              onClick={() => setDateFilter('all')}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                dateFilter === 'all' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
+              )}
+              title="Show all archived canvas directives"
+            >
+              ARCHIVES
+            </button>
           </div>
 
           <div className="h-5 w-[1px] bg-white/10 hidden sm:block" />

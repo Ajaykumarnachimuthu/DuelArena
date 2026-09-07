@@ -120,7 +120,8 @@ export function saveTaskMeta(taskId: string, meta: TaskMeta): void {
 }
 
 // Global Task Status helper queries
-export function isTaskCompleted(taskId: string): boolean {
+export function isTaskCompleted(taskId: string, taskObj?: { completed?: boolean }): boolean {
+  if (taskObj?.completed) return true
   const meta = loadTaskMeta()[taskId]
   if (meta?.completed) return true
   const subtasks = loadTaskSubtasks()[taskId] || []
@@ -128,8 +129,9 @@ export function isTaskCompleted(taskId: string): boolean {
   return false
 }
 
-export function isTaskActive(taskId: string): boolean {
-  if (isTaskCompleted(taskId)) return false
+export function isTaskActive(taskId: string, taskObj?: { is_active?: boolean; completed?: boolean }): boolean {
+  if (isTaskCompleted(taskId, taskObj)) return false
+  if (taskObj?.is_active) return true
   const meta = loadTaskMeta()[taskId]
   return !!meta?.is_active
 }
