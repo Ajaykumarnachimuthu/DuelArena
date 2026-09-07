@@ -849,16 +849,13 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 const pos = positions[t.id] || t.pos || { x: 40, y: 40 }
                 const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
                 const isAjay = t.user_id === AJAY_ID
+                const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
                 const cardBorderClass = isTeamup 
                   ? 'border-purple-400/60 bg-gradient-to-br from-brand-cyan/10 via-purple-950/20 to-brand-pink/10' 
-                  : isAjay 
-                    ? 'border-brand-cyan/40 bg-brand-cyan/10' 
-                    : 'border-brand-pink/40 bg-brand-pink/10'
+                  : isAjay ? 'border-brand-cyan/40 bg-brand-cyan/10' : 'border-brand-pink/40 bg-brand-pink/10'
                 const cardGlowClass = isTeamup 
                   ? 'shadow-[0_0_30px_rgba(233,102,255,0.25)] shadow-[0_0_30px_rgba(129,236,255,0.25)]' 
-                  : isAjay 
-                    ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' 
-                    : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
+                  : isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
                 const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
 
                 const subtasks = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id] : (t.subtasks || [])
@@ -873,10 +870,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 const completedSubtasksCount = subtasks.filter(st => st.completed).length
                 const totalSubtasks = subtasks.length
 
-                const isCompleted = totalSubtasks > 0 
-                  ? completedSubtasksCount === totalSubtasks 
-                  : !!meta.completed
-
+                const isCompleted = meta.completed || (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks)
                 const isActive = !isCompleted && (meta.is_active || false)
 
                 // Subtask Completion Percentage
@@ -887,9 +881,12 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   completionRatio = 1
                 }
 
-                const activePlayingClass = isActive 
-                  ? (isTeamup ? "active-playing-teamup" : isAjay ? "active-playing-ajay" : "active-playing-selvaa")
-                  : ""
+                // Card dimensions for SVG circumference progress calculation
+                const cardWidth = 300
+                const cardHeight = 220
+                const cardRx = 12
+                const perimeter = 2 * (cardWidth + cardHeight) - 8 * cardRx + 2 * Math.PI * cardRx
+                const dashOffset = perimeter * (1 - completionRatio)
 
                 const isNewlyCreated = highlightTaskIds[t.id] || false
                 const isSourceInConnecting = connectingSourceId === t.id
@@ -907,7 +904,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       handleDragEnd(t.id, newX, newY)
                     }}
                     className="absolute cursor-grab active:cursor-grabbing z-10 group"
-                    style={{ width: 300 }}
+                    style={{ width: cardWidth }}
                   >
                   {/* Floating Badge for Newly Created Task Node */}
                   <AnimatePresence>
@@ -924,60 +921,54 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     )}
                   </AnimatePresence>
 
-                  {/* Task Card Node Body (Stable Layout without padding jumps) */}
-                  <div className={cn(
-                    "relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300 overflow-hidden",
-                    isCompleted 
-                      ? (isTeamup 
-                          ? "border-purple-400/80 bg-gradient-to-br from-brand-cyan/20 via-purple-950/30 to-brand-pink/20 shadow-[0_0_30px_rgba(233,102,255,0.4)] shadow-[0_0_30px_rgba(129,236,255,0.4)]" 
-                          : isAjay 
-                            ? "border-brand-cyan/60 bg-brand-cyan/15 shadow-[0_0_25px_rgba(129,236,255,0.3)]" 
-                            : "border-brand-pink/60 bg-brand-pink/15 shadow-[0_0_25px_rgba(233,102,255,0.3)]")
-                      : cardBorderClass,
-                    isActive ? activePlayingClass : (!isCompleted && cardGlowClass),
-                    isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
-                  )}>
-                    
-                    {/* SVG Circumference Progress Overlay around entire card border (Only when completionRatio > 0) */}
-                    {completionRatio > 0 && (
+                  {/* Rotating Active Border Wrapper if Task is "Going On" (stops automatically when completed) */}
+                  <div 
+                    className={cn(
+                      isNewlyCreated 
+                        ? "newly-created-highlight-container" 
+                        : isActive 
+                          ? (isTeamup ? "teamup-rotating-container" : "active-rotating-container") 
+                          : ""
+                    )}
+                    style={{ '--active-color': cardThemeColor } as React.CSSProperties}
+                  >
+                    <div className={cn(
+                      "active-rotating-content relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300",
+                      isCompleted ? "border-emerald-500/50 bg-emerald-950/10 shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardBorderClass,
+                      isCompleted ? "shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardGlowClass,
+                      isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
+                    )}>
+                      
+                      {/* SVG Circumference Progress Overlay around entire card border */}
                       <svg 
-                        className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden rounded-xl"
-                        style={{ zIndex: 10 }}
+                        className="absolute inset-0 w-full h-full pointer-events-none overflow-visible rounded-xl"
+                        style={{ zIndex: 2 }}
                       >
                         <rect
-                          x="1.5"
-                          y="1.5"
-                          width="calc(100% - 3px)"
-                          height="calc(100% - 3px)"
+                          x="0"
+                          y="0"
+                          width="100%"
+                          height="100%"
                           rx="12"
                           fill="none"
-                          stroke={isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'}
+                          stroke={isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor}
                           strokeWidth="3"
-                          pathLength="100"
-                          strokeDasharray="100"
-                          strokeDashoffset={100 * (1 - completionRatio)}
+                          strokeDasharray={perimeter}
+                          strokeDashoffset={dashOffset}
                           strokeLinecap="round"
                           style={{
-                            transition: 'stroke-dashoffset 0.4s ease-out, stroke 0.3s ease',
-                            filter: `drop-shadow(0 0 6px ${isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'})`
+                            transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
+                            filter: completionRatio > 0 ? `drop-shadow(0 0 8px ${isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor})` : 'none'
                           }}
                         />
                       </svg>
-                    )}
 
                       {/* Card Header: Owner Badge & Active/Connect Controls */}
                       <div className="flex items-center justify-between mb-3 relative z-10">
                         <div className="flex items-center gap-2">
                           {isCompleted ? (
-                            <span className={cn(
-                              "px-2 py-0.5 rounded text-[10px] font-mono uppercase font-extrabold flex items-center gap-1 shadow-lg",
-                              isTeamup
-                                ? "bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border border-purple-400/60 shadow-[0_0_15px_rgba(233,102,255,0.4)]"
-                                : isAjay
-                                  ? "bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/50 shadow-[0_0_12px_rgba(129,236,255,0.3)]"
-                                  : "bg-brand-pink/20 text-brand-pink border border-brand-pink/50 shadow-[0_0_12px_rgba(233,102,255,0.3)]"
-                            )}>
-                              <CheckCircle2 className="w-3.5 h-3.5 fill-current" /> COMPLETED
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> COMPLETED
                             </span>
                           ) : isTeamup ? (
                             <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-extrabold bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border-white/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(233,102,255,0.3)]">
@@ -1137,6 +1128,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       </div>
 
                     </div>
+                  </div>
                 </motion.div>
               )
             })
