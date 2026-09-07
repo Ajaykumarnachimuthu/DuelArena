@@ -21,6 +21,7 @@ export interface Task {
   duration_minutes?: number;
   start_time?: string;
   completed?: boolean;
+  pos?: { x: number; y: number };
 }
 
 export interface PlayerStats {

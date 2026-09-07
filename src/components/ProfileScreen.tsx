@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { Task, getRank, getLevelNumber } from '../lib/types'
 import { cn } from '../lib/utils'
 import { UserCircle2, Zap, CheckCircle2, Clock, ShieldCheck, Flame } from 'lucide-react'
-import { isTaskActive, isTaskCompleted } from '../lib/canvasUtils'
+import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
 
@@ -281,7 +281,7 @@ export function ProfileScreen({ tasks, currentUser, points }: ProfileProps) {
                     <div className="flex items-center gap-3 min-w-0">
                       <Zap className={cn("w-4 h-4 opacity-70 shrink-0", textColor)} />
                       <div className="min-w-0">
-                        <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[160px] sm:max-w-[220px]">{t.title}</div>
+                        <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[160px] sm:max-w-[220px]">{extractTaskTitleAndMeta(t.title).title}</div>
                         <div className="font-mono text-[9px] text-white/40 tracking-widest mt-0.5">{t.category} // {new Date(t.created_at).toLocaleDateString()}</div>
                       </div>
                     </div>

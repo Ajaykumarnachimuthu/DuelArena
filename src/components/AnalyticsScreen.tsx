@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } fro
 import { motion } from 'framer-motion'
 import { Task } from '../lib/types'
 import { cn } from '../lib/utils'
-import { isTaskActive, isTaskCompleted } from '../lib/canvasUtils'
+import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 import { Zap, CheckCircle2, AlertTriangle, TrendingUp, Award, Layers } from 'lucide-react'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -201,7 +201,7 @@ export function AnalyticsScreen({ tasks }: AnalyticsProps) {
             {activeTasks.map(t => (
               <div key={t.id} className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/10 flex items-center justify-between">
                 <div>
-                  <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[160px]">{t.title}</div>
+                  <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[160px]">{extractTaskTitleAndMeta(t.title).title}</div>
                   <div className="font-mono text-[10px] text-white/40 mt-0.5">{t.category}</div>
                 </div>
                 <motion.div

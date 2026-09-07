@@ -1,7 +1,7 @@
 import { Task } from '../lib/types'
 import { motion } from 'framer-motion'
 import { Zap, CheckCircle2 } from 'lucide-react'
-import { isTaskActive, isTaskCompleted } from '../lib/canvasUtils'
+import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 
 // Hardcoded for splitting just the UI visually since history requires distinct opponent columns
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -100,7 +100,7 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                           <div className="flex items-center gap-3">
                             <Zap className="w-4 h-4 text-brand-cyan opacity-70 shrink-0" />
                             <div>
-                              <div className="font-mono text-xs font-bold text-white/90">{t.title}</div>
+                              <div className="font-mono text-xs font-bold text-white/90">{extractTaskTitleAndMeta(t.title).title}</div>
                               <div className="font-mono text-[10px] text-white/40 tracking-widest mt-0.5">{t.category}</div>
                             </div>
                           </div>
@@ -149,7 +149,7 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                         <div className="flex items-center gap-3">
                           <Zap className="w-4 h-4 text-brand-pink opacity-70 shrink-0" />
                           <div>
-                            <div className="font-mono text-xs font-bold text-white/90">{t.title}</div>
+                            <div className="font-mono text-xs font-bold text-white/90">{extractTaskTitleAndMeta(t.title).title}</div>
                             <div className="font-mono text-[10px] text-white/40 tracking-widest mt-0.5">{t.category}</div>
                           </div>
                         </div>

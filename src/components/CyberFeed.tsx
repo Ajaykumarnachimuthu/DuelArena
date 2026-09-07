@@ -2,7 +2,7 @@ import { Task } from '../lib/types'
 import { motion } from 'framer-motion'
 import { cn } from '../lib/utils'
 import { Dumbbell, Code, Zap, Flame, CheckCircle2 } from 'lucide-react'
-import { isTaskActive, isTaskCompleted } from '../lib/canvasUtils'
+import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 
 const IC = { Fitness: Dumbbell, Code: Code, Learning: Zap, Life: Flame }
 
@@ -44,7 +44,7 @@ export function CyberFeed({ tasks }: { tasks: Task[] }) {
                     <Ico className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="font-mono text-sm font-bold text-white/90">{t.title}</div>
+                    <div className="font-mono text-sm font-bold text-white/90">{extractTaskTitleAndMeta(t.title).title}</div>
                     <div className="flex gap-2 items-center mt-1">
                       {isTeamup ? (
                         <span className="text-[10px] font-mono font-bold uppercase tracking-widest bg-gradient-to-r from-brand-cyan to-brand-pink bg-clip-text text-transparent">

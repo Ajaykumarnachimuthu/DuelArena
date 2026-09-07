@@ -7,7 +7,8 @@ import {
   loadTaskConnections, saveTaskConnections, 
   loadTaskSubtasks, saveTaskSubtasks, 
   loadTaskMeta, saveTaskMeta,
-  calculateBezierPath 
+  calculateBezierPath,
+  extractTaskTitleAndMeta
 } from '../lib/canvasUtils'
 import { subscribeRealtimeSync } from '../lib/realtimeSync'
 import { 
@@ -123,6 +124,8 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
     const unsubscribe = subscribeRealtimeSync(() => {
       // Refresh local state maps live upon receiving cross-device broadcast update
+      setPositions(loadTaskPositions())
+      setConnections(loadTaskConnections())
       setMetaMap(loadTaskMeta())
       setSubtasksMap(loadTaskSubtasks())
     })
@@ -130,7 +133,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     return () => {
       unsubscribe()
     }
-  }, [])
+  }, [tasks])
 
   // Mouse drag panning on empty canvas background
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -385,7 +388,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     const text = inlineSubtaskInput[taskId]?.trim()
     if (!text) return
 
-    const currentSubtasks = subtasksMap[taskId] || []
+    const taskObj = tasks.find(t => t.id === taskId)
+    const currentSubtasks = (subtasksMap[taskId] && subtasksMap[taskId].length > 0)
+      ? subtasksMap[taskId]
+      : (taskObj?.subtasks || [])
+
     const updatedSubtasks: SubTask[] = [
       ...currentSubtasks,
       { id: 'sub_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4), title: text, completed: false }
@@ -401,7 +408,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
   // Handle subtask toggle
   const handleToggleSubtask = (taskId: string, subtaskId: string) => {
-    const currentSubtasks = subtasksMap[taskId] || []
+    const taskObj = tasks.find(t => t.id === taskId)
+    const currentSubtasks = (subtasksMap[taskId] && subtasksMap[taskId].length > 0)
+      ? subtasksMap[taskId]
+      : (taskObj?.subtasks || [])
+
     const updatedSubtasks = currentSubtasks.map(st => 
       st.id === subtaskId ? { ...st, completed: !st.completed } : st
     )
@@ -412,7 +423,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
     // Check if all subtasks are now completed
     const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed)
-    const currentMeta = metaMap[taskId] || {}
+    const currentMeta = metaMap[taskId] || { is_active: taskObj?.is_active, completed: taskObj?.completed }
     if (allCompleted && !currentMeta.completed) {
       const updatedMeta = { ...currentMeta, completed: true, is_active: false }
       setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
@@ -428,14 +439,18 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
   // Handle subtask deletion
   const handleDeleteSubtask = (taskId: string, subtaskId: string) => {
-    const currentSubtasks = subtasksMap[taskId] || []
+    const taskObj = tasks.find(t => t.id === taskId)
+    const currentSubtasks = (subtasksMap[taskId] && subtasksMap[taskId].length > 0)
+      ? subtasksMap[taskId]
+      : (taskObj?.subtasks || [])
+
     const updatedSubtasks = currentSubtasks.filter(st => st.id !== subtaskId)
     const newMap = { ...subtasksMap, [taskId]: updatedSubtasks }
     setSubtasksMap(newMap)
     saveTaskSubtasks(taskId, updatedSubtasks)
 
     const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every(s => s.completed)
-    const currentMeta = metaMap[taskId] || {}
+    const currentMeta = metaMap[taskId] || { is_active: taskObj?.is_active, completed: taskObj?.completed }
     if (allCompleted && !currentMeta.completed) {
       const updatedMeta = { ...currentMeta, completed: true, is_active: false }
       setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
@@ -854,7 +869,8 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
               </div>
             ) : (
               visibleTasks.map(t => {
-                const pos = positions[t.id] || { x: 40, y: 40 }
+                const { title: displayTitle } = extractTaskTitleAndMeta(t.title)
+                const pos = positions[t.id] || t.pos || { x: 40, y: 40 }
                 const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
                 const isAjay = t.user_id === AJAY_ID
                 const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
@@ -866,8 +882,14 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   : isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
                 const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
 
-                const subtasks = subtasksMap[t.id] || []
-                const meta = metaMap[t.id] || {}
+                const subtasks = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id] : (t.subtasks || [])
+                const meta = {
+                  duration_minutes: 45,
+                  start_time: '09:00 AM',
+                  completed: t.completed,
+                  is_active: t.is_active,
+                  ...metaMap[t.id]
+                }
 
                 const completedSubtasksCount = subtasks.filter(st => st.completed).length
                 const totalSubtasks = subtasks.length
@@ -1066,7 +1088,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                               transition={{ duration: 0.25 }}
                               className="font-mono text-sm font-semibold tracking-wide text-white/90 line-clamp-2"
                             >
-                              {t.title}
+                              {displayTitle}
                             </motion.div>
                           )}
                         </AnimatePresence>
