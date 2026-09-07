@@ -90,17 +90,17 @@ export default function App() {
     startTime?: string, 
     initialSubtasks?: string[]
   ) => {
+    const validDbDifficulty = (difficultyStr === 'Teamup' || difficultyStr === 'Epic') ? 'Hard' : difficultyStr
     let points = 50
     if (difficultyStr === 'Medium') points = 100
-    if (difficultyStr === 'Hard') points = 250
-    if (difficultyStr === 'Epic') points = 500
+    if (difficultyStr === 'Hard' || validDbDifficulty === 'Hard') points = 250
     if (cat === 'Teamup' || difficultyStr === 'Teamup') points = 300
 
     try {
       const { data, error } = await supabase.from('tasks').insert({
         user_id: currentUser,
         title,
-        difficulty: difficultyStr,
+        difficulty: validDbDifficulty,
         points,
         category: cat
       }).select()
