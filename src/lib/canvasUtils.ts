@@ -64,6 +64,8 @@ export function loadTaskPositions(): Record<string, { x: number; y: number }> {
   }
 }
 
+const positionSaveTimers: Record<string, ReturnType<typeof setTimeout>> = {}
+
 export function saveTaskPosition(taskId: string, x: number, y: number): void {
   try {
     const current = loadTaskPositions()
@@ -72,15 +74,21 @@ export function saveTaskPosition(taskId: string, x: number, y: number): void {
     localStorage.setItem(POSITIONS_KEY, JSON.stringify(current))
     broadcastCanvasUpdate(taskId, pos)
 
-    // Sync to Supabase Postgres DB asynchronously
-    supabase.from('tasks').select('title').eq('id', taskId).single().then(({ data }) => {
-      if (data) {
-        const { title, meta } = extractTaskTitleAndMeta(data.title)
-        meta.pos = pos
-        const newTitle = buildTaskTitleWithMeta(title, meta)
-        supabase.from('tasks').update({ title: newTitle }).eq('id', taskId).then()
-      }
-    })
+    // Debounce Supabase Postgres DB sync so canvas dragging is 60fps butter smooth
+    if (positionSaveTimers[taskId]) {
+      clearTimeout(positionSaveTimers[taskId])
+    }
+
+    positionSaveTimers[taskId] = setTimeout(() => {
+      supabase.from('tasks').select('title').eq('id', taskId).single().then(({ data }) => {
+        if (data) {
+          const { title, meta } = extractTaskTitleAndMeta(data.title)
+          meta.pos = pos
+          const newTitle = buildTaskTitleWithMeta(title, meta)
+          supabase.from('tasks').update({ title: newTitle }).eq('id', taskId).then()
+        }
+      })
+    }, 400)
   } catch (e) {
     console.error('Failed to save task position:', e)
   }

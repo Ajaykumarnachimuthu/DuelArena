@@ -793,20 +793,20 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
             {visibleTasks.flatMap(t => {
               const targets = connections[t.id] || []
-              const sourcePos = positions[t.id] || { x: 40, y: 40 }
+              const sourcePos = positions[t.id] || t.pos || { x: 40, y: 40 }
               const sourceOwnerIsAjay = t.user_id === AJAY_ID
 
-              // Node box dimensions: width ~ 300px, height ~ 180px
+              // Node box dimensions: width ~ 300px, height ~ 220px
               const sourceCenterX = sourcePos.x + 150
-              const sourceCenterY = sourcePos.y + 90
+              const sourceCenterY = sourcePos.y + 110
 
               return targets.map(targetId => {
                 const targetTask = tasks.find(x => x.id === targetId)
                 if (!targetTask) return null
 
-                const targetPos = positions[targetId] || { x: 40, y: 40 }
+                const targetPos = positions[targetId] || targetTask.pos || { x: 40, y: 40 }
                 const targetCenterX = targetPos.x + 150
-                const targetCenterY = targetPos.y + 90
+                const targetCenterY = targetPos.y + 110
 
                 const pathString = calculateBezierPath(sourceCenterX, sourceCenterY, targetCenterX, targetCenterY)
                 const strokeGradient = sourceOwnerIsAjay ? "url(#cyan-gradient)" : "url(#pink-gradient)"
@@ -898,6 +898,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     dragMomentum={false}
                     initial={{ x: pos.x, y: pos.y, scale: isNewlyCreated ? 0.95 : 1 }}
                     animate={{ x: pos.x, y: pos.y, scale: 1 }}
+                    onDrag={(_, info) => {
+                      const newX = Math.max(10, Math.round(pos.x + info.offset.x / zoom))
+                      const newY = Math.max(10, Math.round(pos.y + info.offset.y / zoom))
+                      setPositions(prev => ({ ...prev, [t.id]: { x: newX, y: newY } }))
+                    }}
                     onDragEnd={(_, info) => {
                       const newX = Math.max(10, Math.round(pos.x + info.offset.x / zoom))
                       const newY = Math.max(10, Math.round(pos.y + info.offset.y / zoom))

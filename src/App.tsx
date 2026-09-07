@@ -106,10 +106,23 @@ export default function App() {
     }
     fetchTasks()
     
-    // Cross-device Realtime Sync listener
-    const unsubscribeSync = subscribeRealtimeSync(() => {
-      // Trigger immediate UI re-render when another device broadcasts active / subtask changes
+    // Cross-device Realtime Sync listener (Optimized to update state directly without network lag)
+    const unsubscribeSync = subscribeRealtimeSync((payload) => {
       setSyncTick(prev => prev + 1)
+      if (payload) {
+        if (payload.type === 'CANVAS_UPDATE' && payload.taskId && payload.position) {
+          setTasks(prev => prev.map(t => t.id === payload.taskId ? { ...t, pos: payload.position } : t))
+          return
+        }
+        if (payload.type === 'SUBTASK_UPDATE' && payload.taskId && payload.subtasks) {
+          setTasks(prev => prev.map(t => t.id === payload.taskId ? { ...t, subtasks: payload.subtasks } : t))
+          return
+        }
+        if (payload.type === 'META_UPDATE' && payload.taskId && payload.meta) {
+          setTasks(prev => prev.map(t => t.id === payload.taskId ? { ...t, is_active: payload.meta?.is_active ?? t.is_active, completed: payload.meta?.completed ?? t.completed } : t))
+          return
+        }
+      }
       fetchTasks()
     })
 
