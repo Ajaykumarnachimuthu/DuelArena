@@ -1,5 +1,5 @@
 import { SubTask } from './types'
-import { broadcastSubtaskUpdate, broadcastTaskMetaUpdate } from './realtimeSync'
+import { broadcastSubtaskUpdate, broadcastTaskMetaUpdate, broadcastCanvasUpdate } from './realtimeSync'
 import { supabase } from './supabase'
 
 const POSITIONS_KEY = 'habit_arena_task_positions_v1'
@@ -70,6 +70,7 @@ export function saveTaskPosition(taskId: string, x: number, y: number): void {
     const pos = { x: Math.round(x), y: Math.round(y) }
     current[taskId] = pos
     localStorage.setItem(POSITIONS_KEY, JSON.stringify(current))
+    broadcastCanvasUpdate(taskId, pos)
 
     // Sync to Supabase Postgres DB asynchronously
     supabase.from('tasks').select('title').eq('id', taskId).single().then(({ data }) => {

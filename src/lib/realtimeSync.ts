@@ -22,7 +22,7 @@ export function initRealtimeSync(): void {
 
   syncChannel = supabase.channel('arena-sync', {
     config: {
-      broadcast: { self: false } // Receive events from other devices/clients
+      broadcast: { self: true } // Receive events on all connected clients and tabs
     }
   })
 
@@ -31,7 +31,7 @@ export function initRealtimeSync(): void {
       if (response.payload) {
         const payload = response.payload as RealtimeSyncPayload
         
-        // Update local storage cache immediately upon receiving broadcast from another device
+        // Update local storage cache immediately upon receiving broadcast
         if (payload.taskId && payload.meta) {
           try {
             const META_KEY = 'habit_arena_task_meta_v1'
@@ -63,34 +63,56 @@ export function initRealtimeSync(): void {
     .subscribe()
 }
 
-// Broadcast task meta update (e.g. is_active ON PROGRESS / completed) to all other connected devices
+// Broadcast task meta update (e.g. is_active ON PROGRESS / completed)
 export function broadcastTaskMetaUpdate(taskId: string, meta: TaskMeta): void {
   initRealtimeSync()
+  const payload: RealtimeSyncPayload = {
+    type: 'META_UPDATE',
+    taskId,
+    meta
+  }
+  listeners.forEach(fn => fn(payload))
   if (syncChannel) {
     syncChannel.send({
       type: 'broadcast',
       event: 'arena-state-change',
-      payload: {
-        type: 'META_UPDATE',
-        taskId,
-        meta
-      }
+      payload
     })
   }
 }
 
-// Broadcast subtasks checklist update to all other connected devices
+// Broadcast subtasks checklist update
 export function broadcastSubtaskUpdate(taskId: string, subtasks: SubTask[]): void {
   initRealtimeSync()
+  const payload: RealtimeSyncPayload = {
+    type: 'SUBTASK_UPDATE',
+    taskId,
+    subtasks
+  }
+  listeners.forEach(fn => fn(payload))
   if (syncChannel) {
     syncChannel.send({
       type: 'broadcast',
       event: 'arena-state-change',
-      payload: {
-        type: 'SUBTASK_UPDATE',
-        taskId,
-        subtasks
-      }
+      payload
+    })
+  }
+}
+
+// Broadcast canvas node position/connections update
+export function broadcastCanvasUpdate(taskId: string, position?: { x: number; y: number }): void {
+  initRealtimeSync()
+  const payload: RealtimeSyncPayload = {
+    type: 'CANVAS_UPDATE',
+    taskId,
+    position
+  }
+  listeners.forEach(fn => fn(payload))
+  if (syncChannel) {
+    syncChannel.send({
+      type: 'broadcast',
+      event: 'arena-state-change',
+      payload
     })
   }
 }
