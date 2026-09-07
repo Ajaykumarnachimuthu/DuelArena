@@ -2,7 +2,17 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from './lib/supabase'
 import { Task } from './lib/types'
-import { saveTaskSubtasks, saveTaskMeta, isTaskCompleted } from './lib/canvasUtils'
+import { 
+  saveTaskSubtasks, 
+  saveTaskMeta, 
+  isTaskCompleted, 
+  extractTaskTitleAndMeta, 
+  buildTaskTitleWithMeta,
+  loadTaskSubtasks,
+  loadTaskMeta,
+  loadTaskPositions,
+  loadTaskConnections
+} from './lib/canvasUtils'
 import { subscribeRealtimeSync } from './lib/realtimeSync'
 import { Sidebar } from './components/Sidebar'
 import { DashboardScreen } from './components/DashboardScreen'
@@ -37,7 +47,47 @@ export default function App() {
     async function fetchTasks() {
       const { data, error } = await supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(500)
       if (data && !error) {
-        setTasks(data as Task[])
+        const rawSubtasks = loadTaskSubtasks()
+        const rawMeta = loadTaskMeta()
+        const rawPositions = loadTaskPositions()
+        const rawConnections = loadTaskConnections()
+
+        const parsedTasks = (data as Task[]).map(t => {
+          const { title: cleanTitle, meta } = extractTaskTitleAndMeta(t.title)
+          
+          if (meta.subtasks && Array.isArray(meta.subtasks)) {
+            rawSubtasks[t.id] = meta.subtasks
+          }
+          if (meta.completed !== undefined || meta.is_active !== undefined || meta.duration_minutes || meta.start_time) {
+            rawMeta[t.id] = { ...rawMeta[t.id], ...meta }
+          }
+          if (meta.pos) {
+            rawPositions[t.id] = meta.pos
+          }
+          if (meta.connectedTo) {
+            rawConnections[t.id] = meta.connectedTo
+          }
+
+          return {
+            ...t,
+            title: cleanTitle,
+            subtasks: meta.subtasks || rawSubtasks[t.id] || [],
+            completed: meta.completed !== undefined ? meta.completed : rawMeta[t.id]?.completed || false,
+            is_active: meta.is_active !== undefined ? meta.is_active : rawMeta[t.id]?.is_active || false,
+            pos: meta.pos || rawPositions[t.id],
+          }
+        })
+
+        try {
+          localStorage.setItem('habit_arena_task_subtasks_v1', JSON.stringify(rawSubtasks))
+          localStorage.setItem('habit_arena_task_meta_v1', JSON.stringify(rawMeta))
+          localStorage.setItem('habit_arena_task_positions_v1', JSON.stringify(rawPositions))
+          localStorage.setItem('habit_arena_task_connections_v1', JSON.stringify(rawConnections))
+        } catch (e) {
+          console.error("Cache sync failed", e)
+        }
+
+        setTasks(parsedTasks)
       } else {
         console.error("Supabase fetch error", error)
       }
@@ -61,8 +111,9 @@ export default function App() {
         if (payload.eventType === 'INSERT') {
           const t = payload.new as Task
           if (t.user_id !== currentUser) {
+             const { title: cleanTitle } = extractTaskTitleAndMeta(t.title)
              const opponentName = isTeamup(t) ? 'Teamup' : t.user_id === AJAY_ID ? 'Ajay' : 'Selvaa'
-             setNotification({ id: Math.random().toString(), msg: `${opponentName} directive: ${t.title} (+${t.points}XP)` })
+             setNotification({ id: Math.random().toString(), msg: `${opponentName} directive: ${cleanTitle} (+${t.points}XP)` })
           }
         }
       })
@@ -96,10 +147,26 @@ export default function App() {
     if (difficultyStr === 'Hard' || validDbDifficulty === 'Hard') points = 250
     if (cat === 'Teamup' || difficultyStr === 'Teamup') points = 300
 
+    const subtasksList = (initialSubtasks || []).map((stTitle, i) => ({
+      id: `sub_${Date.now()}_${i}`,
+      title: stTitle,
+      completed: false
+    }))
+
+    const initialMeta = {
+      subtasks: subtasksList,
+      duration_minutes: duration || 45,
+      start_time: startTime || '09:00 AM',
+      completed: false,
+      is_active: false
+    }
+
+    const rawTitle = buildTaskTitleWithMeta(title, initialMeta)
+
     try {
       const { data, error } = await supabase.from('tasks').insert({
         user_id: currentUser,
-        title,
+        title: rawTitle,
         difficulty: validDbDifficulty,
         points,
         category: cat
@@ -109,17 +176,8 @@ export default function App() {
 
       if (data && data.length > 0) {
         const newTask = data[0] as Task
-        if (initialSubtasks && initialSubtasks.length > 0) {
-          const subtasksObjects = initialSubtasks.map((stTitle, i) => ({
-            id: `sub_${newTask.id}_${i}`,
-            title: stTitle,
-            completed: false
-          }))
-          saveTaskSubtasks(newTask.id, subtasksObjects)
-        }
-        if (duration || startTime) {
-          saveTaskMeta(newTask.id, { duration_minutes: duration || 45, start_time: startTime || '09:00 AM' })
-        }
+        saveTaskSubtasks(newTask.id, subtasksList)
+        saveTaskMeta(newTask.id, { duration_minutes: duration || 45, start_time: startTime || '09:00 AM' })
       }
     } catch (e) {
        console.error('Insert failed:', e)
