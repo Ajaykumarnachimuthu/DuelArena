@@ -62,12 +62,42 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   const [newSubtasks, setNewSubtasks] = useState<string[]>([])
 
   // Subtask inline edit per card
+  // Subtask inline edit per card
   const [inlineSubtaskInput, setInlineSubtaskInput] = useState<Record<string, string>>({})
+
+  // Highlight map for newly deployed task nodes (taskId -> boolean)
+  const [highlightTaskIds, setHighlightTaskIds] = useState<Record<string, boolean>>({})
+  const prevTasksCountRef = useRef<number>(tasks.length)
 
   // Canvas View transform (0.85 on mobile, 1.2 on desktop)
   const [zoom, setZoom] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 0.85 : 1.2))
 
   const canvasRef = useRef<HTMLDivElement>(null)
+
+  // Detect newly added tasks and trigger 4-second highlight
+  useEffect(() => {
+    if (tasks.length > prevTasksCountRef.current) {
+      const existingIds = new Set(Object.keys(positions))
+      const newTasks = tasks.filter(t => !existingIds.has(t.id))
+      
+      if (newTasks.length > 0) {
+        const newHighlightMap: Record<string, boolean> = {}
+        newTasks.forEach(t => {
+          newHighlightMap[t.id] = true
+        })
+        setHighlightTaskIds(prev => ({ ...prev, ...newHighlightMap }))
+
+        setTimeout(() => {
+          setHighlightTaskIds(prev => {
+            const copy = { ...prev }
+            newTasks.forEach(t => delete copy[t.id])
+            return copy
+          })
+        }, 4000)
+      }
+    }
+    prevTasksCountRef.current = tasks.length
+  }, [tasks, positions])
 
   // Load local state maps on mount & subscribe to cross-device broadcast sync
   useEffect(() => {
@@ -87,27 +117,132 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     }
   }, [])
 
-  // Auto-assign positions for new tasks that lack positions (vertical column on mobile)
+  // Two-Finger Movement (Pan) and Two-Finger Pinch Zoom listener on Canvas
   useEffect(() => {
-    let changed = false
-    const newPositions = { ...positions }
+    const el = canvasRef.current
+    if (!el) return
+
+    let prevDist: number | null = null
+    let prevMidX: number | null = null
+    let prevMidY: number | null = null
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const t1 = e.touches[0]
+        const t2 = e.touches[1]
+        prevDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
+        prevMidX = (t1.clientX + t2.clientX) / 2
+        prevMidY = (t1.clientY + t2.clientY) / 2
+      }
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+
+        const t1 = e.touches[0]
+        const t2 = e.touches[1]
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
+        const midX = (t1.clientX + t2.clientX) / 2
+        const midY = (t1.clientY + t2.clientY) / 2
+
+        // Pinch Zoom
+        if (prevDist && prevDist > 0) {
+          const ratio = dist / prevDist
+          setZoom(z => Math.min(2.0, Math.max(0.5, parseFloat((z * ratio).toFixed(2)))))
+        }
+
+        // Two-Finger Pan Movement
+        if (prevMidX !== null && prevMidY !== null) {
+          const deltaX = midX - prevMidX
+          const deltaY = midY - prevMidY
+          el.scrollLeft -= deltaX
+          el.scrollTop -= deltaY
+        }
+
+        prevDist = dist
+        prevMidX = midX
+        prevMidY = midY
+      }
+    }
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        prevDist = null
+        prevMidX = null
+        prevMidY = null
+      }
+    }
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault()
+        const zoomDelta = -e.deltaY * 0.003
+        setZoom(z => Math.min(2.0, Math.max(0.5, parseFloat((z + zoomDelta).toFixed(2)))))
+      } else {
+        el.scrollLeft += e.deltaX
+        el.scrollTop += e.deltaY
+      }
+    }
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: false })
+    el.addEventListener('touchmove', handleTouchMove, { passive: false })
+    el.addEventListener('touchend', handleTouchEnd)
+    el.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('wheel', handleWheel)
+    }
+  }, [])
+
+  // Helper: Find next available empty grid slot that does NOT overlap with any existing task card
+  const findNextEmptySlot = (currentPositions: Record<string, { x: number; y: number }>) => {
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
     const COLS = isMobile ? 1 : 3
     const STEP_X = 414
     const STEP_Y = 320
+    const START_X = isMobile ? 20 : 64
+    const START_Y = 40
 
-    // Sort tasks chronologically (oldest first) so new tasks get assigned the next available grid slot
+    const occupiedList = Object.values(currentPositions)
+
+    let slot = 0
+    while (slot < 1000) {
+      const col = slot % COLS
+      const row = Math.floor(slot / COLS)
+      const candX = START_X + col * STEP_X
+      const candY = START_Y + row * STEP_Y
+
+      // Check if candidate overlaps within card collision box (width ~300, height ~220)
+      const isOverlapping = occupiedList.some(pos => 
+        Math.abs(pos.x - candX) < 320 && Math.abs(pos.y - candY) < 240
+      )
+
+      if (!isOverlapping) {
+        return { x: candX, y: candY }
+      }
+      slot++
+    }
+
+    return { x: START_X, y: START_Y + occupiedList.length * STEP_Y }
+  }
+
+  // Auto-assign positions for new tasks using collision-free empty slot finder
+  useEffect(() => {
+    let changed = false
+    const newPositions = { ...positions }
+
+    // Sort tasks chronologically so new tasks get assigned sequentially
     const sortedTasks = [...tasks].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
-    sortedTasks.forEach((t, index) => {
+    sortedTasks.forEach((t) => {
       if (!newPositions[t.id]) {
-        const col = index % COLS
-        const row = Math.floor(index / COLS)
-        newPositions[t.id] = {
-          x: isMobile ? 20 : 64 + col * STEP_X,
-          y: 40 + row * STEP_Y
-        }
-        saveTaskPosition(t.id, newPositions[t.id].x, newPositions[t.id].y)
+        const nextSlot = findNextEmptySlot(newPositions)
+        newPositions[t.id] = nextSlot
+        saveTaskPosition(t.id, nextSlot.x, nextSlot.y)
         changed = true
       }
     })
@@ -570,6 +705,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
               const flashText = flashMessageMap[t.id]
 
+              const isNewlyCreated = highlightTaskIds[t.id] || false
               const isSourceInConnecting = connectingSourceId === t.id
 
               return (
@@ -577,8 +713,8 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   key={t.id}
                   drag
                   dragMomentum={false}
-                  initial={{ x: pos.x, y: pos.y }}
-                  animate={{ x: pos.x, y: pos.y }}
+                  initial={{ x: pos.x, y: pos.y, scale: isNewlyCreated ? 0.95 : 1 }}
+                  animate={{ x: pos.x, y: pos.y, scale: 1 }}
                   onDragEnd={(_, info) => {
                     const newX = Math.max(10, pos.x + info.offset.x)
                     const newY = Math.max(10, pos.y + info.offset.y)
@@ -587,10 +723,29 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   className="absolute cursor-grab active:cursor-grabbing z-10 group"
                   style={{ width: cardWidth }}
                 >
-                  {/* Rotating Active Border Wrapper if Task is "Going On" (stops automatically when completed) */}
+                  {/* Floating Badge for Newly Created Task Node */}
+                  <AnimatePresence>
+                    {isNewlyCreated && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -12 }}
+                        className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 font-mono text-[10px] font-extrabold uppercase px-3 py-1 rounded-full bg-gradient-to-r from-brand-cyan via-purple-400 to-brand-pink text-black shadow-[0_0_20px_rgba(129,236,255,0.9)] flex items-center gap-1.5 whitespace-nowrap animate-bounce"
+                      >
+                        <Sparkles className="w-3 h-3 text-black fill-current" />
+                        <span>NEW OBJECTIVE CREATED HERE</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Rotating Active / Newly Created Highlight Border Wrapper */}
                   <div 
                     className={cn(
-                      isActive ? (isTeamup ? "teamup-rotating-container" : "active-rotating-container") : ""
+                      isNewlyCreated 
+                        ? "newly-created-highlight-container" 
+                        : isActive 
+                          ? (isTeamup ? "teamup-rotating-container" : "active-rotating-container") 
+                          : ""
                     )}
                     style={{ '--active-color': cardThemeColor } as React.CSSProperties}
                   >
