@@ -518,11 +518,12 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     <div className="max-w-7xl mx-auto w-full space-y-6 pb-24 pt-4 fade-in">
       
       {/* Control Matrix Toolbar */}
-      <div className="glass-panel p-3.5 sm:p-4 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cyber-border shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+      <div className="glass-panel p-3.5 sm:p-4 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4 cyber-border shadow-[0_0_30px_rgba(0,0,0,0.8)]">
         
-        {/* Left: Title & User Filters */}
-        <div className="flex flex-wrap items-center justify-between sm:justify-start gap-3 sm:gap-4">
-          <div className="flex items-center gap-2.5">
+        {/* Left Block: Title & Filter Matrix */}
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          {/* Playground Title Badge */}
+          <div className="flex items-center gap-2.5 shrink-0">
             <Layout className={cn("w-5 h-5 shrink-0", textColor)} />
             <div>
               <h2 className="text-xs sm:text-sm font-display tracking-widest text-white leading-tight">OBJECTIVES_PLAYGROUND</h2>
@@ -530,158 +531,164 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
             </div>
           </div>
 
-          <div className="h-5 w-[1px] bg-white/10 hidden sm:block" />
+          <div className="h-5 w-[1px] bg-white/10 hidden sm:block shrink-0" />
 
-          {/* Day Scope Filter Toggle */}
-          <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10">
-            <button 
-              onClick={() => setDateFilter('today')}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
-                dateFilter === 'today' ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold" : "text-white/40 hover:text-white"
-              )}
-              title="Show directives for today's active daily session"
-            >
-              <Clock className="w-3 h-3" /> TODAY
-            </button>
-            <button 
-              onClick={() => setDateFilter('all')}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
-                dateFilter === 'all' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
-              )}
-              title="Show all archived canvas directives"
-            >
-              ARCHIVES
-            </button>
-          </div>
+          {/* Combined Filter Controls Container */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Day Scope Filter Toggle */}
+            <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10 shrink-0">
+              <button 
+                onClick={() => setDateFilter('today')}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                  dateFilter === 'today' ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold" : "text-white/40 hover:text-white"
+                )}
+                title="Show directives for today's active daily session"
+              >
+                <Clock className="w-3 h-3" /> TODAY
+              </button>
+              <button 
+                onClick={() => setDateFilter('all')}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                  dateFilter === 'all' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
+                )}
+                title="Show all archived canvas directives"
+              >
+                ARCHIVES
+              </button>
+            </div>
 
-          <div className="h-5 w-[1px] bg-white/10 hidden sm:block" />
-
-          {/* User Filter Buttons */}
-          <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10">
-            <button 
-              onClick={() => setFilterUser('all')}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
-                filterUser === 'all' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
-              )}
-            >
-              <Eye className="w-3 h-3" /> ALL
-            </button>
-            <button 
-              onClick={() => setFilterUser('ajay')}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
-                filterUser === 'ajay' ? "bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/40 font-bold" : "text-white/40 hover:text-brand-cyan"
-              )}
-            >
-              <span className="w-2 h-2 rounded-full bg-brand-cyan shadow-[0_0_8px_#81ecff]" /> AJAY
-            </button>
-            <button 
-              onClick={() => setFilterUser('selvaa')}
-              className={cn(
-                "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
-                filterUser === 'selvaa' ? "bg-brand-pink/20 text-brand-pink border border-brand-pink/40 font-bold" : "text-white/40 hover:text-brand-pink"
-              )}
-            >
-              <span className="w-2 h-2 rounded-full bg-brand-pink shadow-[0_0_8px_#e966ff]" /> SELVAA
-            </button>
+            {/* User Filter Buttons */}
+            <div className="flex items-center bg-black/60 p-1 rounded-xl border border-white/10 shrink-0">
+              <button 
+                onClick={() => setFilterUser('all')}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                  filterUser === 'all' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
+                )}
+              >
+                <Eye className="w-3 h-3" /> ALL
+              </button>
+              <button 
+                onClick={() => setFilterUser('ajay')}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                  filterUser === 'ajay' ? "bg-brand-cyan/20 text-brand-cyan border border-brand-cyan/40 font-bold" : "text-white/40 hover:text-brand-cyan"
+                )}
+              >
+                <span className="w-2 h-2 rounded-full bg-brand-cyan shadow-[0_0_8px_#81ecff]" /> AJAY
+              </button>
+              <button 
+                onClick={() => setFilterUser('selvaa')}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                  filterUser === 'selvaa' ? "bg-brand-pink/20 text-brand-pink border border-brand-pink/40 font-bold" : "text-white/40 hover:text-brand-pink"
+                )}
+              >
+                <span className="w-2 h-2 rounded-full bg-brand-pink shadow-[0_0_8px_#e966ff]" /> SELVAA
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap">
-          {/* Connection Link Mode Toggle */}
-          <button 
-            onClick={() => setConnectingSourceId(connectingSourceId ? null : 'SELECT_MODE')}
-            className={cn(
-              "px-3 py-1.5 rounded-xl text-[11px] font-mono border transition-all flex items-center gap-1.5",
-              connectingSourceId 
-                ? "bg-amber-500/20 border-amber-500 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]" 
-                : "border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
-            )}
-          >
-            <LinkIcon className="w-3.5 h-3.5" />
-            {connectingSourceId ? 'LINKING...' : 'CONNECT'}
-          </button>
-
-          {/* Auto Align Grid Button */}
-          <button 
-            onClick={handleAutoAlignGrid}
-            className="px-3 py-1.5 rounded-xl text-[11px] font-mono border border-white/10 text-white/60 hover:bg-white/5 hover:text-white transition-all flex items-center gap-1.5"
-            title="Auto-align all task cards vertically on mobile or in grid pattern on desktop"
-          >
-            <GridIcon className="w-3.5 h-3.5 text-brand-cyan" />
-            ALIGN
-          </button>
-
-          {/* Zoom & Reset Controls */}
-          <div className="flex items-center bg-black/60 rounded-xl border border-white/10 p-0.5">
+        {/* Right Block: Canvas Tools & Action Buttons */}
+        <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {/* Canvas Tool Group */}
+          <div className="flex items-center gap-2">
             <button 
-              onClick={() => setZoom(z => Math.max(0.4, parseFloat((z - 0.1).toFixed(2))))} 
-              className="p-1.5 text-white/50 hover:text-white"
-              title="Zoom Out"
+              onClick={() => setConnectingSourceId(connectingSourceId ? null : 'SELECT_MODE')}
+              className={cn(
+                "px-3 py-1.5 h-8.5 rounded-xl text-[11px] font-mono border transition-all flex items-center gap-1.5 shrink-0",
+                connectingSourceId 
+                  ? "bg-amber-500/20 border-amber-500 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.3)]" 
+                  : "border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+              )}
             >
-              <ZoomOut className="w-3.5 h-3.5" />
+              <LinkIcon className="w-3.5 h-3.5" />
+              {connectingSourceId ? 'LINKING...' : 'CONNECT'}
             </button>
-            <span className="font-mono text-[10px] px-1 text-white/70">{Math.round(zoom * 100)}%</span>
+
             <button 
-              onClick={() => setZoom(z => Math.min(2.5, parseFloat((z + 0.1).toFixed(2))))} 
-              className="p-1.5 text-white/50 hover:text-white"
-              title="Zoom In"
+              onClick={handleAutoAlignGrid}
+              className="px-3 py-1.5 h-8.5 rounded-xl text-[11px] font-mono border border-white/10 text-white/60 hover:bg-white/5 hover:text-white transition-all flex items-center gap-1.5 shrink-0"
+              title="Auto-align all task cards vertically on mobile or in grid pattern on desktop"
             >
-              <ZoomIn className="w-3.5 h-3.5" />
+              <GridIcon className="w-3.5 h-3.5 text-brand-cyan" />
+              ALIGN
             </button>
-            <div className="h-3 w-[1px] bg-white/10 my-auto mx-0.5" />
-            <button
-              onClick={() => {
-                setPan({ x: 0, y: 0 })
-                setZoom(typeof window !== 'undefined' && window.innerWidth < 640 ? 0.85 : 1.2)
-              }}
-              className="px-2 py-1 text-[10px] font-mono text-white/50 hover:text-white flex items-center gap-1"
-              title="Reset View Position & Zoom"
-            >
-              <RotateCcw className="w-3 h-3" /> RESET
-            </button>
+
+            {/* Zoom Controls */}
+            <div className="flex items-center bg-black/60 rounded-xl border border-white/10 p-0.5 h-8.5 shrink-0">
+              <button 
+                onClick={() => setZoom(z => Math.max(0.4, parseFloat((z - 0.1).toFixed(2))))} 
+                className="p-1 text-white/50 hover:text-white"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="font-mono text-[10px] px-1 text-white/70">{Math.round(zoom * 100)}%</span>
+              <button 
+                onClick={() => setZoom(z => Math.min(2.5, parseFloat((z + 0.1).toFixed(2))))} 
+                className="p-1 text-white/50 hover:text-white"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+              <div className="h-3 w-[1px] bg-white/10 my-auto mx-0.5" />
+              <button
+                onClick={() => {
+                  setPan({ x: 0, y: 0 })
+                  setZoom(typeof window !== 'undefined' && window.innerWidth < 640 ? 0.85 : 1.2)
+                }}
+                className="px-1.5 py-0.5 text-[10px] font-mono text-white/50 hover:text-white flex items-center gap-1"
+                title="Reset View Position & Zoom"
+              >
+                <RotateCcw className="w-3 h-3" /> RESET
+              </button>
+            </div>
           </div>
 
-          {/* Combined Cyan & Pink Rotating Border Teamup Button */}
-          <div className="teamup-rotating-container shrink-0">
+          {/* Objective Triggers Group */}
+          <div className="flex items-center gap-2">
+            {/* Teamup Button */}
+            <div className="teamup-rotating-container shrink-0">
+              <motion.button 
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => {
+                  setCat('Teamup')
+                  setDiff('Teamup')
+                  setTitle('Teamup Objective')
+                  setIsDeployOpen(true)
+                }}
+                className="teamup-rotating-content px-3 py-1.5 h-8.5 font-display text-[11px] font-bold tracking-wider text-white bg-black/90 hover:bg-black/70 flex items-center gap-1.5 transition-all shadow-lg cursor-pointer"
+              >
+                <Users className="w-3.5 h-3.5 text-brand-cyan" />
+                <span className="bg-gradient-to-r from-brand-cyan via-purple-300 to-brand-pink bg-clip-text text-transparent font-extrabold tracking-wider">
+                  [ TEAMUP TASK ]
+                </span>
+                <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-amber-300 border border-amber-500/30">
+                  300 XP
+                </span>
+              </motion.button>
+            </div>
+
+            {/* New Objective Trigger Button */}
             <motion.button 
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => {
-                setCat('Teamup')
-                setDiff('Teamup')
-                setTitle('Teamup Objective')
-                setIsDeployOpen(true)
-              }}
-              className="teamup-rotating-content px-3.5 py-1.5 font-display text-xs font-bold tracking-wider text-white bg-black/90 hover:bg-black/70 flex items-center gap-1.5 transition-all shadow-lg cursor-pointer"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setIsDeployOpen(true)}
+              className={cn(
+                "px-3.5 py-1.5 h-8.5 rounded-xl font-display text-[11px] font-bold tracking-wider text-black flex items-center gap-1.5 transition-all shadow-lg shrink-0",
+                theme === 'cyan' ? "bg-brand-cyan shadow-[0_0_20px_rgba(129,236,255,0.5)]" : "bg-brand-pink shadow-[0_0_20px_rgba(233,102,255,0.5)]"
+              )}
             >
-              <Users className="w-3.5 h-3.5 text-brand-cyan" />
-              <span className="bg-gradient-to-r from-brand-cyan via-purple-300 to-brand-pink bg-clip-text text-transparent font-extrabold tracking-wider">
-                [ TEAMUP TASK ]
-              </span>
-              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-amber-300 border border-amber-500/30">
-                300 XP EACH
-              </span>
+              <Plus className="w-3.5 h-3.5 stroke-[3]" /> NEW OBJECTIVE
             </motion.button>
           </div>
-
-          {/* Deploy New Task Modal Trigger */}
-          <motion.button 
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => setIsDeployOpen(true)}
-            className={cn(
-              "px-4 py-1.5 rounded-xl font-display text-xs font-bold tracking-wider text-black flex items-center gap-1.5 transition-all shadow-lg shrink-0",
-              theme === 'cyan' ? "bg-brand-cyan shadow-[0_0_20px_rgba(129,236,255,0.5)]" : "bg-brand-pink shadow-[0_0_20px_rgba(233,102,255,0.5)]"
-            )}
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" /> NEW OBJECTIVE
-          </motion.button>
         </div>
+
       </div>
 
       {/* Main Interactive 2D Canvas Playground Area */}
