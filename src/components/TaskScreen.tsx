@@ -52,9 +52,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   const [subtasksMap, setSubtasksMap] = useState<Record<string, SubTask[]>>({})
   const [metaMap, setMetaMap] = useState<Record<string, { is_active?: boolean; duration_minutes?: number; start_time?: string; completed?: boolean }>>({})
 
-  // Flashing percentage map: taskId -> percentage message (smooth in-grid cross-fade text)
-  const [flashMessageMap, setFlashMessageMap] = useState<Record<string, string>>({})
-
   // Form modal state
   const [isDeployOpen, setIsDeployOpen] = useState(false)
   const [title, setTitle] = useState('')
@@ -402,8 +399,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     setSubtasksMap(newMap)
     saveTaskSubtasks(taskId, updatedSubtasks)
     setInlineSubtaskInput({ ...inlineSubtaskInput, [taskId]: '' })
-
-    triggerPercentageFlash(taskId, updatedSubtasks)
   }
 
   // Handle subtask toggle
@@ -433,8 +428,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
       setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
       saveTaskMeta(taskId, updatedMeta)
     }
-
-    triggerPercentageFlash(taskId, updatedSubtasks)
   }
 
   // Handle subtask deletion
@@ -456,25 +449,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
       setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
       saveTaskMeta(taskId, updatedMeta)
     }
-  }
-
-  // Trigger smooth in-grid percentage flash transition
-  const triggerPercentageFlash = (taskId: string, subtasksList: SubTask[]) => {
-    if (subtasksList.length === 0) return
-    const completedCount = subtasksList.filter(s => s.completed).length
-    const pct = Math.round((completedCount / subtasksList.length) * 100)
-
-    const flashText = `${pct}% COMPLETED`
-    setFlashMessageMap(prev => ({ ...prev, [taskId]: flashText }))
-
-    // Clear flash message after 2.5 seconds with smooth cross-fade back to title
-    setTimeout(() => {
-      setFlashMessageMap(prev => {
-        const copy = { ...prev }
-        delete copy[taskId]
-        return copy
-      })
-    }, 2500)
   }
 
   // Handle active status toggle ("Going On")
@@ -503,17 +477,6 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
     setMetaMap(prev => ({ ...prev, [taskId]: updatedMeta }))
     saveTaskMeta(taskId, updatedMeta)
-
-    const flashText = newComplete ? '100% COMPLETED' : 'STATUS RESET'
-    setFlashMessageMap(prev => ({ ...prev, [taskId]: flashText }))
-
-    setTimeout(() => {
-      setFlashMessageMap(prev => {
-        const copy = { ...prev }
-        delete copy[taskId]
-        return copy
-      })
-    }, 2500)
   }
 
   // Connection node click handler
@@ -876,10 +839,14 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
                 const cardBorderClass = isTeamup 
                   ? 'border-purple-400/60 bg-gradient-to-br from-brand-cyan/10 via-purple-950/20 to-brand-pink/10' 
-                  : isAjay ? 'border-brand-cyan/40' : 'border-brand-pink/40'
+                  : isAjay 
+                    ? 'border-brand-cyan/40 bg-brand-cyan/10' 
+                    : 'border-brand-pink/40 bg-brand-pink/10'
                 const cardGlowClass = isTeamup 
                   ? 'shadow-[0_0_30px_rgba(233,102,255,0.25)] shadow-[0_0_30px_rgba(129,236,255,0.25)]' 
-                  : isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
+                  : isAjay 
+                    ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' 
+                    : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
                 const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
 
                 const subtasks = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id] : (t.subtasks || [])
@@ -911,11 +878,12 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 // Card dimensions for SVG circumference progress calculation
                 const cardWidth = 300
                 const cardHeight = 220
+                const strokeW = 3
+                const rectW = cardWidth - strokeW
+                const rectH = cardHeight - strokeW
                 const cardRx = 12
-                const perimeter = 2 * (cardWidth + cardHeight) - 8 * cardRx + 2 * Math.PI * cardRx
+                const perimeter = 2 * (rectW + rectH) - 8 * cardRx + 2 * Math.PI * cardRx
                 const dashOffset = perimeter * (1 - completionRatio)
-
-                const flashText = flashMessageMap[t.id]
 
                 const isNewlyCreated = highlightTaskIds[t.id] || false
                 const isSourceInConnecting = connectingSourceId === t.id
@@ -950,12 +918,12 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     )}
                   </AnimatePresence>
 
-                  {/* Rotating Active / Teamup Completed Highlight Border Wrapper */}
+                  {/* Rotating Active / Teamup Highlight Border Wrapper */}
                   <div 
                     className={cn(
                       isNewlyCreated 
                         ? "newly-created-highlight-container" 
-                        : (isActive || (isCompleted && isTeamup)) 
+                        : (isActive && isTeamup) 
                           ? "teamup-rotating-container" 
                           : isActive
                             ? "active-rotating-container"
@@ -969,8 +937,8 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                         ? (isTeamup 
                             ? "border-purple-400/80 bg-gradient-to-br from-brand-cyan/20 via-purple-950/30 to-brand-pink/20 shadow-[0_0_30px_rgba(233,102,255,0.4)] shadow-[0_0_30px_rgba(129,236,255,0.4)]" 
                             : isAjay 
-                              ? "border-brand-cyan/60 bg-brand-cyan/10 shadow-[0_0_25px_rgba(129,236,255,0.3)]" 
-                              : "border-brand-pink/60 bg-brand-pink/10 shadow-[0_0_25px_rgba(233,102,255,0.3)]")
+                              ? "border-brand-cyan/60 bg-brand-cyan/15 shadow-[0_0_25px_rgba(129,236,255,0.3)]" 
+                              : "border-brand-pink/60 bg-brand-pink/15 shadow-[0_0_25px_rgba(233,102,255,0.3)]")
                         : cardBorderClass,
                       !isCompleted && cardGlowClass,
                       isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
@@ -979,23 +947,24 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                       {/* SVG Circumference Progress Overlay around entire card border (Only when completionRatio > 0) */}
                       {completionRatio > 0 && (
                         <svg 
+                          viewBox={`0 0 ${cardWidth} ${cardHeight}`}
                           className="absolute inset-0 w-full h-full pointer-events-none overflow-visible rounded-xl"
                           style={{ zIndex: 2 }}
                         >
                           <rect
-                            x="0"
-                            y="0"
-                            width="100%"
-                            height="100%"
-                            rx="12"
+                            x={strokeW / 2}
+                            y={strokeW / 2}
+                            width={rectW}
+                            height={rectH}
+                            rx={cardRx}
                             fill="none"
                             stroke={isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'}
-                            strokeWidth="3"
+                            strokeWidth={strokeW}
                             strokeDasharray={perimeter}
                             strokeDashoffset={dashOffset}
                             strokeLinecap="round"
                             style={{
-                              transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
+                              transition: 'stroke-dashoffset 0.4s ease-out, stroke 0.3s ease',
                               filter: `drop-shadow(0 0 8px ${isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'})`
                             }}
                           />
@@ -1076,40 +1045,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                         </div>
                       </div>
 
-                      {/* Task Name Title with Smooth In-Grid Flash Percentage Replacement */}
+                      {/* Task Name Title (STABLE RENDER WITHOUT GLITCHING OR HEIGHT JUMPS) */}
                       <div className="min-h-[44px] flex items-center relative z-10 mb-2">
-                        <AnimatePresence mode="wait">
-                          {flashText ? (
-                            <motion.div
-                              key="flash"
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 4 }}
-                              transition={{ duration: 0.25 }}
-                              className={cn(
-                                "w-full py-1 px-2.5 rounded-lg border font-mono text-xs font-bold tracking-widest text-center shadow-lg",
-                                isTeamup
-                                  ? "bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 border-purple-400 text-white"
-                                  : isAjay 
-                                    ? "bg-brand-cyan/20 border-brand-cyan text-brand-cyan text-glow-cyan" 
-                                    : "bg-brand-pink/20 border-brand-pink text-brand-pink text-glow-pink"
-                              )}
-                            >
-                              ⚡ {flashText}
-                            </motion.div>
-                          ) : (
-                            <motion.div
-                              key="title"
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 4 }}
-                              transition={{ duration: 0.25 }}
-                              className="font-mono text-sm font-semibold tracking-wide text-white/90 line-clamp-2"
-                            >
-                              {displayTitle}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        <h3 className="font-mono text-sm font-semibold tracking-wide text-white/90 line-clamp-2 leading-tight">
+                          {displayTitle}
+                        </h3>
                       </div>
 
                       {/* Meta Info: Category, Difficulty, XP, Duration */}
