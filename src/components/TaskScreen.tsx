@@ -96,7 +96,10 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     const STEP_X = 414
     const STEP_Y = 320
 
-    tasks.forEach((t, index) => {
+    // Sort tasks chronologically (oldest first) so new tasks get assigned the next available grid slot
+    const sortedTasks = [...tasks].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+    sortedTasks.forEach((t, index) => {
       if (!newPositions[t.id]) {
         const col = index % COLS
         const row = Math.floor(index / COLS)
@@ -122,7 +125,9 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     const STEP_X = 414
     const STEP_Y = 320
 
-    tasks.forEach((t, index) => {
+    const sortedTasks = [...tasks].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+    sortedTasks.forEach((t, index) => {
       const col = index % COLS
       const row = Math.floor(index / COLS)
       updated[t.id] = {
@@ -301,9 +306,10 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   }
 
   // Filtered tasks
+  const isTeamup = (t: Task) => t.category === 'Teamup' || t.difficulty === 'Teamup'
   const visibleTasks = tasks.filter(t => {
-    if (filterUser === 'ajay') return t.user_id === AJAY_ID
-    if (filterUser === 'selvaa') return t.user_id === SELVAA_ID
+    if (filterUser === 'ajay') return t.user_id === AJAY_ID || isTeamup(t)
+    if (filterUser === 'selvaa') return t.user_id === SELVAA_ID || isTeamup(t)
     return true
   })
 
