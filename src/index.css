@@ -42,9 +42,12 @@
   }
   .text-glow-cyan { text-shadow: 0 0 15px rgba(129, 236, 255, 0.6), 0 0 30px rgba(129, 236, 255, 0.4); }
   .text-glow-pink { text-shadow: 0 0 15px rgba(233, 102, 255, 0.6), 0 0 30px rgba(233, 102, 255, 0.4); }
+  .text-glow-red { text-shadow: 0 0 15px rgba(255, 112, 118, 0.8), 0 0 35px rgba(255, 112, 118, 0.5), 0 0 60px rgba(255, 112, 118, 0.3); }
   .border-glow-cyan { box-shadow: 0 0 20px rgba(129, 236, 255, 0.2); border-color: rgba(129, 236, 255, 0.5); }
   .border-glow-pink { box-shadow: 0 0 20px rgba(233, 102, 255, 0.2); border-color: rgba(233, 102, 255, 0.5); }
+  .border-glow-red { box-shadow: 0 0 25px rgba(255, 112, 118, 0.3); border-color: rgba(255, 112, 118, 0.6); }
   .rush-mode-pulse { animation: rush-pulse 0.8s infinite alternate ease-in-out; }
+  .rush-text-pulse { animation: rush-text-pulse-anim 0.8s infinite alternate ease-in-out; }
   .crown-bounce { animation: bounce 2s infinite ease-in-out; }
 
   .hide-scrollbar::-webkit-scrollbar {
@@ -57,10 +60,12 @@
 
   /* FigJam Whiteboard Blueprint Grid */
   .blueprint-grid {
-    background-size: 64px 64px;
+    background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
     background-image: 
-      linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+      linear-gradient(to right, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   }
 
   /* Rotating Border Automation for Active Tasks */
@@ -200,6 +205,24 @@
 @keyframes rush-pulse {
   0% { box-shadow: 0 0 15px rgba(255, 112, 118, 0.3); border-color: rgba(255, 112, 118, 0.4); text-shadow: 0 0 10px rgba(255, 112, 118, 0.5); }
   100% { box-shadow: 0 0 40px rgba(255, 112, 118, 0.8); border-color: rgba(255, 112, 118, 1); text-shadow: 0 0 20px rgba(255, 112, 118, 1); }
+}
+
+@keyframes rush-text-pulse-anim {
+  0% {
+    text-shadow: 
+      0 0 10px rgba(255, 112, 118, 0.8),
+      0 0 20px rgba(255, 112, 118, 0.6),
+      0 0 40px rgba(255, 112, 118, 0.3);
+    filter: drop-shadow(0 0 10px rgba(255, 112, 118, 0.5));
+  }
+  100% {
+    text-shadow: 
+      0 0 15px rgba(255, 112, 118, 1),
+      0 0 35px rgba(255, 112, 118, 0.9),
+      0 0 65px rgba(255, 112, 118, 0.7),
+      0 0 110px rgba(255, 112, 118, 0.5);
+    filter: drop-shadow(0 0 25px rgba(255, 112, 118, 0.9));
+  }
 }
 
 @keyframes bounce {

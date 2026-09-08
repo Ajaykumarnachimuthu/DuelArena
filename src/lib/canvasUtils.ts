@@ -12,6 +12,7 @@ export interface TaskMeta {
   duration_minutes?: number
   start_time?: string
   completed?: boolean
+  completed_at?: string
 }
 
 // Extract human title and embedded metadata from task title
@@ -51,6 +52,86 @@ export function calculateBezierPath(
   const controlY2 = endY
 
   return `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`
+}
+
+// Smart Docking & Bezier Path calculation between card edges
+export function calculateSmartBezierPath(
+  sourcePos: { x: number; y: number },
+  sourceWidth: number,
+  sourceHeight: number,
+  targetPos: { x: number; y: number },
+  targetWidth: number,
+  targetHeight: number
+): { path: string; startX: number; startY: number; endX: number; endY: number } {
+  const sCenterX = sourcePos.x + sourceWidth / 2
+  const sCenterY = sourcePos.y + sourceHeight / 2
+  const tCenterX = targetPos.x + targetWidth / 2
+  const tCenterY = targetPos.y + targetHeight / 2
+
+  const dx = tCenterX - sCenterX
+  const dy = tCenterY - sCenterY
+
+  let startX: number, startY: number, endX: number, endY: number
+  let controlX1: number, controlY1: number, controlX2: number, controlY2: number
+
+  // Dock to Top/Bottom edges if relative offset is primarily vertical
+  if (Math.abs(dy) >= Math.abs(dx)) {
+    if (dy > 0) {
+      // Target is BELOW source: Exit Bottom of Source, Enter Top of Target
+      startX = sCenterX
+      startY = sourcePos.y + sourceHeight
+      endX = tCenterX
+      endY = targetPos.y
+
+      const deltaY = Math.max(40, Math.abs(endY - startY) * 0.5)
+      controlX1 = startX
+      controlY1 = startY + deltaY
+      controlX2 = endX
+      controlY2 = endY - deltaY
+    } else {
+      // Target is ABOVE source: Exit Top of Source, Enter Bottom of Target
+      startX = sCenterX
+      startY = sourcePos.y
+      endX = tCenterX
+      endY = targetPos.y + targetHeight
+
+      const deltaY = Math.max(40, Math.abs(startY - endY) * 0.5)
+      controlX1 = startX
+      controlY1 = startY - deltaY
+      controlX2 = endX
+      controlY2 = endY + deltaY
+    }
+  } else {
+    // Dock to Left/Right edges if relative offset is primarily horizontal
+    if (dx > 0) {
+      // Target is RIGHT of source: Exit Right of Source, Enter Left of Target
+      startX = sourcePos.x + sourceWidth
+      startY = sCenterY
+      endX = targetPos.x
+      endY = tCenterY
+
+      const deltaX = Math.max(40, Math.abs(endX - startX) * 0.5)
+      controlX1 = startX + deltaX
+      controlY1 = startY
+      controlX2 = endX - deltaX
+      controlY2 = endY
+    } else {
+      // Target is LEFT of source: Exit Left of Source, Enter Right of Target
+      startX = sourcePos.x
+      startY = sCenterY
+      endX = targetPos.x + targetWidth
+      endY = tCenterY
+
+      const deltaX = Math.max(40, Math.abs(startX - endX) * 0.5)
+      controlX1 = startX - deltaX
+      controlY1 = startY
+      controlX2 = endX + deltaX
+      controlY2 = endY
+    }
+  }
+
+  const path = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`
+  return { path, startX, startY, endX, endY }
 }
 
 // Position persistence helpers
@@ -168,13 +249,16 @@ export function loadTaskMeta(): Record<string, TaskMeta> {
   }
 }
 
-export function saveTaskMeta(taskId: string, meta: TaskMeta): void {
+export function saveTaskMeta(taskId: string, meta: TaskMeta & { completed_at?: string }): void {
   try {
     const current = loadTaskMeta()
     const updatedMeta = { ...current[taskId], ...meta }
-    // If marking task as completed, automatically turn off active state
+    // If marking task as completed, automatically turn off active state and record completion timestamp
     if (updatedMeta.completed) {
       updatedMeta.is_active = false
+      if (!updatedMeta.completed_at) {
+        updatedMeta.completed_at = new Date().toISOString()
+      }
     }
     current[taskId] = updatedMeta
     localStorage.setItem(META_KEY, JSON.stringify(current))
@@ -192,6 +276,45 @@ export function saveTaskMeta(taskId: string, meta: TaskMeta): void {
   } catch (e) {
     console.error('Failed to save task meta:', e)
   }
+}
+
+// Calculate dynamic daily points for Ajay or Selvaa in real-time
+export function calculateDailyUserPoints(userId: string, tasks: any[]): number {
+  const todayStr = new Date().toDateString()
+  const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
+  const isTeamup = (t: any) => t.category === 'Teamup' || t.difficulty === 'Teamup'
+  
+  const userTasks = tasks.filter(t => (userId === AJAY_ID ? (t.user_id === AJAY_ID || isTeamup(t)) : (t.user_id !== AJAY_ID || isTeamup(t))))
+
+  const localMetaMap = loadTaskMeta()
+  const localSubtasksMap = loadTaskSubtasks()
+
+  let points = 0
+
+  for (const t of userTasks) {
+    const meta = localMetaMap[t.id] || {}
+    const subtasks = (localSubtasksMap[t.id] && localSubtasksMap[t.id].length > 0) 
+      ? localSubtasksMap[t.id] 
+      : (t.subtasks || [])
+    
+    const completed = isTaskCompleted(t.id, t)
+
+    const createdToday = new Date(t.created_at).toDateString() === todayStr
+    const completedToday = meta.completed_at ? new Date(meta.completed_at).toDateString() === todayStr : true
+
+    if (completed) {
+      if (createdToday || completedToday) {
+        points += t.points || 50
+      }
+    } else if (subtasks.length > 0) {
+      const completedSubCount = subtasks.filter((st: any) => st.completed).length
+      if (completedSubCount > 0 && (createdToday || completedToday)) {
+        points += Math.round((completedSubCount / subtasks.length) * (t.points || 50))
+      }
+    }
+  }
+
+  return points
 }
 
 // Global Task Status helper queries

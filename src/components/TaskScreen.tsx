@@ -7,13 +7,13 @@ import {
   loadTaskConnections, saveTaskConnections, 
   loadTaskSubtasks, saveTaskSubtasks, 
   loadTaskMeta, saveTaskMeta,
-  calculateBezierPath,
-  extractTaskTitleAndMeta
+  calculateSmartBezierPath
 } from '../lib/canvasUtils'
 import { subscribeRealtimeSync } from '../lib/realtimeSync'
+import { TaskNodeCard } from './TaskNodeCard'
 import { 
-  Plus, Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
-  Clock, Move, ZoomIn, ZoomOut, CheckSquare, 
+  Plus, Link as LinkIcon, 
+  Clock, Move, ZoomIn, ZoomOut, 
   Layout, Eye, Sparkles, X, Grid as GridIcon, Users, RotateCcw
 } from 'lucide-react'
 
@@ -73,6 +73,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   // Canvas View transform (pan X/Y + zoom)
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 640 ? 0.85 : 1.2))
+  const [mouseCanvasPos, setMouseCanvasPos] = useState<{ x: number; y: number } | null>(null)
 
   const panRef = useRef(pan)
   useEffect(() => {
@@ -130,7 +131,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     return () => {
       unsubscribe()
     }
-  }, [tasks])
+  }, [])
 
   // Mouse drag panning on empty canvas background
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -143,6 +144,13 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect()
+      const rawX = (e.clientX - rect.left - pan.x) / zoom
+      const rawY = (e.clientY - rect.top - pan.y) / zoom
+      setMouseCanvasPos({ x: Math.round(rawX), y: Math.round(rawY) })
+    }
+
     if (!isPanDragging || !panStartRef.current) return
     setPan({
       x: e.clientX - panStartRef.current.x,
@@ -170,7 +178,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
       const target = e.target as HTMLElement
       const subtaskContainer = target.closest('.subtask-scroll-area') as HTMLElement
 
-      if (subtaskContainer) {
+      if (subtaskContainer && subtaskContainer.scrollHeight > subtaskContainer.clientHeight + 4) {
         const midY = e.touches.length === 2 
           ? (e.touches[0].clientY + e.touches[1].clientY) / 2 
           : e.touches[0].clientY
@@ -296,51 +304,20 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     }
   }, [])
 
-  // Helper: Find next available empty grid slot that does NOT overlap with any existing task card
-  const findNextEmptySlot = (currentPositions: Record<string, { x: number; y: number }>) => {
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
-    const COLS = isMobile ? 1 : 3
-    const STEP_X = 414
-    const STEP_Y = 320
-    const START_X = isMobile ? 20 : 64
-    const START_Y = 40
-
-    const occupiedList = Object.values(currentPositions)
-
-    let slot = 0
-    while (slot < 1000) {
-      const col = slot % COLS
-      const row = Math.floor(slot / COLS)
-      const candX = START_X + col * STEP_X
-      const candY = START_Y + row * STEP_Y
-
-      // Check if candidate overlaps within card collision box (width ~300, height ~220)
-      const isOverlapping = occupiedList.some(pos => 
-        Math.abs(pos.x - candX) < 320 && Math.abs(pos.y - candY) < 240
-      )
-
-      if (!isOverlapping) {
-        return { x: candX, y: candY }
-      }
-      slot++
-    }
-
-    return { x: START_X, y: START_Y + occupiedList.length * STEP_Y }
-  }
-
-  // Auto-assign positions for new tasks using collision-free empty slot finder
+  // Assign initial default positions for newly created tasks without touching existing card positions
   useEffect(() => {
     let changed = false
     const newPositions = { ...positions }
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
 
-    // Sort tasks chronologically so new tasks get assigned sequentially
-    const sortedTasks = [...tasks].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-
-    sortedTasks.forEach((t) => {
+    tasks.forEach((t, index) => {
       if (!newPositions[t.id]) {
-        const nextSlot = findNextEmptySlot(newPositions)
-        newPositions[t.id] = nextSlot
-        saveTaskPosition(t.id, nextSlot.x, nextSlot.y)
+        const stored = t.pos || {
+          x: isMobile ? 20 : 64 + (index % 3) * 350,
+          y: 40 + Math.floor(index / 3) * 260
+        }
+        newPositions[t.id] = stored
+        saveTaskPosition(t.id, stored.x, stored.y)
         changed = true
       }
     })
@@ -373,11 +350,68 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     setPositions(updated)
   }
 
-  // Handle position drag end
+  // Direct DOM flowline updater for 120 FPS zero-latency card dragging
+  const updateDOMFlowlines = (taskId: string, rawDx: number, rawDy: number) => {
+    const deltaX = rawDx
+    const deltaY = rawDy
+
+    visibleTasks.forEach(t => {
+      const targets = connections[t.id] || []
+      targets.forEach(targetId => {
+        if (t.id === taskId || targetId === taskId) {
+          const targetTask = visibleTasks.find(x => x.id === targetId)
+          if (!targetTask) return
+
+          const pathBg = document.getElementById(`flowpath-bg-${t.id}-${targetId}`)
+          const pathFg = document.getElementById(`flowpath-fg-${t.id}-${targetId}`)
+          const dotStart = document.getElementById(`flowdot-start-${t.id}-${targetId}`)
+          const dotEnd = document.getElementById(`flowdot-end-${t.id}-${targetId}`)
+
+          if (!pathBg && !pathFg) return
+
+          const sourceP = positions[t.id] || t.pos || { x: 40, y: 40 }
+          const targetP = positions[targetId] || targetTask.pos || { x: 40, y: 40 }
+
+          const sourceSubCount = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id].length : (t.subtasks || []).length
+          const targetSubCount = (subtasksMap[targetId] && subtasksMap[targetId].length > 0) ? subtasksMap[targetId].length : (targetTask.subtasks || []).length
+
+          const sourceW = 300
+          const sourceH = 174 + (sourceSubCount > 0 ? Math.min(140, sourceSubCount * 28 + 12) : 24)
+          const targetW = 300
+          const targetH = 174 + (targetSubCount > 0 ? Math.min(140, targetSubCount * 28 + 12) : 24)
+
+          const curSourcePos = t.id === taskId ? { x: sourceP.x + deltaX, y: sourceP.y + deltaY } : sourceP
+          const curTargetPos = targetId === taskId ? { x: targetP.x + deltaX, y: targetP.y + deltaY } : targetP
+
+          const { path: newPath, startX, startY, endX, endY } = calculateSmartBezierPath(
+            curSourcePos, sourceW, sourceH,
+            curTargetPos, targetW, targetH
+          )
+
+          if (pathBg) pathBg.setAttribute('d', newPath)
+          if (pathFg) pathFg.setAttribute('d', newPath)
+          if (dotStart) {
+            dotStart.setAttribute('cx', String(startX))
+            dotStart.setAttribute('cy', String(startY))
+          }
+          if (dotEnd) {
+            dotEnd.setAttribute('cx', String(endX))
+            dotEnd.setAttribute('cy', String(endY))
+          }
+        }
+      })
+    })
+  }
+
+  // Handle position drag end with unconstrained infinite canvas coordinates
   const handleDragEnd = (taskId: string, x: number, y: number) => {
-    const updated = { ...positions, [taskId]: { x, y } }
-    setPositions(updated)
-    saveTaskPosition(taskId, x, y)
+    const finalX = Math.round(x)
+    const finalY = Math.round(y)
+    setPositions(prev => {
+      const updated = { ...prev, [taskId]: { x: finalX, y: finalY } }
+      saveTaskPosition(taskId, finalX, finalY)
+      return updated
+    })
   }
 
   // Handle subtask add to existing task card
@@ -750,8 +784,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        className="relative w-full h-[650px] sm:h-[750px] rounded-3xl overflow-hidden blueprint-grid border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas cursor-grab active:cursor-grabbing select-none"
-        style={{ backgroundPosition: `${pan.x}px ${pan.y}px` }}
+        className="relative w-full h-[650px] sm:h-[750px] rounded-3xl overflow-hidden border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas cursor-grab active:cursor-grabbing select-none blueprint-grid"
+        style={{
+          backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
+          backgroundSize: `${64 * zoom}px ${64 * zoom}px, ${64 * zoom}px ${64 * zoom}px, ${16 * zoom}px ${16 * zoom}px, ${16 * zoom}px ${16 * zoom}px`
+        }}
       >
         
         {/* Canvas Background Info Overlay */}
@@ -769,15 +806,16 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           </div>
         )}
 
-        {/* Outer Transformed Container for both SVG connections & cards grid */}
+        {/* Outer Transformed Container for SVG connections & Cards */}
         <div 
-          className="w-full h-full absolute inset-0 pointer-events-none"
+          className="w-full h-full absolute inset-0 pointer-events-none transform-gpu"
           style={{ 
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, 
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0px) scale(${zoom})`, 
             transformOrigin: '0 0',
-            transition: isPanDragging ? 'none' : 'transform 0.05s ease-out'
+            willChange: 'transform'
           }}
         >
+
           {/* SVG Flowline Layer for Task Connections */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">
             <defs>
@@ -793,46 +831,93 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
             {visibleTasks.flatMap(t => {
               const targets = connections[t.id] || []
-              const sourcePos = positions[t.id] || t.pos || { x: 40, y: 40 }
+              const sPos = positions[t.id] || t.pos || { x: 40, y: 40 }
               const sourceOwnerIsAjay = t.user_id === AJAY_ID
 
-              // Node box dimensions: width ~ 300px, height ~ 220px
-              const sourceCenterX = sourcePos.x + 150
-              const sourceCenterY = sourcePos.y + 110
+              const sourceSubtaskCount = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id].length : (t.subtasks || []).length
+              const sourceWidth = 300
+              const sourceHeight = 174 + (sourceSubtaskCount > 0 ? Math.min(140, sourceSubtaskCount * 28 + 12) : 24)
+              const sourcePos = sPos
 
               return targets.map(targetId => {
-                const targetTask = tasks.find(x => x.id === targetId)
+                // Strictly require targetTask to exist within visibleTasks to avoid orphan flowlines
+                const targetTask = visibleTasks.find(x => x.id === targetId)
                 if (!targetTask) return null
 
-                const targetPos = positions[targetId] || targetTask.pos || { x: 40, y: 40 }
-                const targetCenterX = targetPos.x + 150
-                const targetCenterY = targetPos.y + 110
+                const tPos = positions[targetId] || targetTask.pos || { x: 40, y: 40 }
+                const targetSubtaskCount = (subtasksMap[targetId] && subtasksMap[targetId].length > 0) ? subtasksMap[targetId].length : (targetTask.subtasks || []).length
+                const targetWidth = 300
+                const targetHeight = 174 + (targetSubtaskCount > 0 ? Math.min(140, targetSubtaskCount * 28 + 12) : 24)
+                const targetPos = tPos
 
-                const pathString = calculateBezierPath(sourceCenterX, sourceCenterY, targetCenterX, targetCenterY)
+                const { path: pathString, startX, startY, endX, endY } = calculateSmartBezierPath(
+                  sourcePos, sourceWidth, sourceHeight,
+                  targetPos, targetWidth, targetHeight
+                )
                 const strokeGradient = sourceOwnerIsAjay ? "url(#cyan-gradient)" : "url(#pink-gradient)"
+                const glowColor = sourceOwnerIsAjay ? "#81ecff" : "#e966ff"
 
                 return (
                   <g key={`${t.id}->${targetId}`}>
                     {/* Glowing background path */}
                     <path
+                      id={`flowpath-bg-${t.id}-${targetId}`}
                       d={pathString}
                       fill="none"
-                      stroke={sourceOwnerIsAjay ? "#81ecff" : "#e966ff"}
+                      stroke={glowColor}
                       strokeWidth={4}
                       strokeOpacity={0.25}
                     />
                     {/* Animated energy flowline */}
                     <path
+                      id={`flowpath-fg-${t.id}-${targetId}`}
                       d={pathString}
                       fill="none"
                       stroke={strokeGradient}
                       strokeWidth={2.5}
                       className="flowline-animated"
                     />
+                    {/* Connection Node Port Dots */}
+                    <circle id={`flowdot-start-${t.id}-${targetId}`} cx={startX} cy={startY} r="4" fill={glowColor} className="animate-pulse" style={{ filter: `drop-shadow(0 0 6px ${glowColor})` }} />
+                    <circle id={`flowdot-end-${t.id}-${targetId}`} cx={endX} cy={endY} r="4" fill={glowColor} className="animate-pulse" style={{ filter: `drop-shadow(0 0 6px ${glowColor})` }} />
                   </g>
                 )
               })
             })}
+
+            {/* Dynamic Live Draft Flowline Following Cursor in Link Mode */}
+            {connectingSourceId && connectingSourceId !== 'SELECT_MODE' && mouseCanvasPos && (() => {
+              const sourceTask = visibleTasks.find(x => x.id === connectingSourceId)
+              if (!sourceTask) return null
+              const sPos = positions[connectingSourceId] || sourceTask.pos || { x: 40, y: 40 }
+              const sourceSubtaskCount = (subtasksMap[connectingSourceId] && subtasksMap[connectingSourceId].length > 0) ? subtasksMap[connectingSourceId].length : (sourceTask.subtasks || []).length
+              const sourceWidth = 300
+              const sourceHeight = 174 + (sourceSubtaskCount > 0 ? Math.min(140, sourceSubtaskCount * 28 + 12) : 24)
+              const sourcePos = sPos
+
+              const targetPos = { x: mouseCanvasPos.x - 10, y: mouseCanvasPos.y - 10 }
+
+              const { path: draftPath, startX, startY, endX, endY } = calculateSmartBezierPath(
+                sourcePos, sourceWidth, sourceHeight,
+                targetPos, 20, 20
+              )
+
+              return (
+                <g key="draft-linking-flowline">
+                  <path
+                    d={draftPath}
+                    fill="none"
+                    stroke="#f59e0b"
+                    strokeWidth={3}
+                    strokeDasharray="6 4"
+                    className="flowline-animated"
+                    style={{ filter: 'drop-shadow(0 0 10px rgba(245, 158, 11, 0.8))' }}
+                  />
+                  <circle cx={startX} cy={startY} r="5" fill="#f59e0b" className="animate-ping" />
+                  <circle cx={endX} cy={endY} r="5" fill="#f59e0b" className="animate-ping" />
+                </g>
+              )
+            })()}
           </svg>
 
           {/* Task Cards Node Grid Layer */}
@@ -845,19 +930,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
               </div>
             ) : (
               visibleTasks.map(t => {
-                const { title: displayTitle } = extractTaskTitleAndMeta(t.title)
                 const pos = positions[t.id] || t.pos || { x: 40, y: 40 }
-                const isTeamup = t.category === 'Teamup' || t.difficulty === 'Teamup'
-                const isAjay = t.user_id === AJAY_ID
-                const cardThemeColor = isTeamup ? '#e966ff' : isAjay ? '#81ecff' : '#e966ff'
-                const cardBorderClass = isTeamup 
-                  ? 'border-purple-400/60 bg-gradient-to-br from-brand-cyan/10 via-purple-950/20 to-brand-pink/10' 
-                  : isAjay ? 'border-brand-cyan/40 bg-brand-cyan/10' : 'border-brand-pink/40 bg-brand-pink/10'
-                const cardGlowClass = isTeamup 
-                  ? 'shadow-[0_0_30px_rgba(233,102,255,0.25)] shadow-[0_0_30px_rgba(129,236,255,0.25)]' 
-                  : isAjay ? 'shadow-[0_0_25px_rgba(129,236,255,0.15)]' : 'shadow-[0_0_25px_rgba(233,102,255,0.15)]'
-                const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
-
                 const subtasks = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id] : (t.subtasks || [])
                 const meta = {
                   duration_minutes: 45,
@@ -866,281 +939,43 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                   is_active: t.is_active,
                   ...metaMap[t.id]
                 }
-
-                const completedSubtasksCount = subtasks.filter(st => st.completed).length
-                const totalSubtasks = subtasks.length
-
-                const isCompleted = meta.completed || (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks)
-                const isActive = !isCompleted && (meta.is_active || false)
-
-                // Subtask Completion Percentage
-                let completionRatio = 0
-                if (totalSubtasks > 0) {
-                  completionRatio = completedSubtasksCount / totalSubtasks
-                } else if (isCompleted) {
-                  completionRatio = 1
-                }
-
-                // Card dimensions for SVG circumference progress calculation
-                const cardWidth = 300
-                const cardHeight = 220
-                const cardRx = 12
-                const perimeter = 2 * (cardWidth + cardHeight) - 8 * cardRx + 2 * Math.PI * cardRx
-                const dashOffset = perimeter * (1 - completionRatio)
-
                 const isNewlyCreated = highlightTaskIds[t.id] || false
                 const isSourceInConnecting = connectingSourceId === t.id
 
                 return (
-                  <motion.div
+                  <TaskNodeCard
                     key={t.id}
-                    drag
-                    dragMomentum={false}
-                    initial={{ x: pos.x, y: pos.y, scale: isNewlyCreated ? 0.95 : 1 }}
-                    animate={{ x: pos.x, y: pos.y, scale: 1 }}
-                    onDrag={(_, info) => {
-                      const newX = Math.max(10, Math.round(pos.x + info.offset.x / zoom))
-                      const newY = Math.max(10, Math.round(pos.y + info.offset.y / zoom))
-                      setPositions(prev => ({ ...prev, [t.id]: { x: newX, y: newY } }))
+                    task={t}
+                    pos={pos}
+                    zoom={zoom}
+                    isNewlyCreated={isNewlyCreated}
+                    isSourceInConnecting={isSourceInConnecting}
+                    subtasks={subtasks}
+                    meta={meta}
+                    inlineSubtaskInput={inlineSubtaskInput[t.id] || ''}
+                    onInlineSubtaskChange={(text) => setInlineSubtaskInput({ ...inlineSubtaskInput, [t.id]: text })}
+                    onAddInlineSubtask={() => handleAddInlineSubtask(t.id)}
+                    onToggleSubtask={(subtaskId) => handleToggleSubtask(t.id, subtaskId)}
+                    onDeleteSubtask={(subtaskId) => handleDeleteSubtask(t.id, subtaskId)}
+                    onToggleActive={() => handleToggleActive(t.id)}
+                    onToggleComplete={() => handleToggleComplete(t.id)}
+                    onNodeConnectClick={() => handleNodeConnectClick(t.id)}
+                    onDeleteTaskNode={() => handleDeleteTaskNode(t.id)}
+                    onDrag={(info) => {
+                      updateDOMFlowlines(t.id, info.offset.x, info.offset.y)
                     }}
-                    onDragEnd={(_, info) => {
-                      const newX = Math.max(10, Math.round(pos.x + info.offset.x / zoom))
-                      const newY = Math.max(10, Math.round(pos.y + info.offset.y / zoom))
+                    onDragEnd={(info) => {
+                      const newX = Math.round(pos.x + info.offset.x)
+                      const newY = Math.round(pos.y + info.offset.y)
                       handleDragEnd(t.id, newX, newY)
                     }}
-                    className="absolute cursor-grab active:cursor-grabbing z-10 group"
-                    style={{ width: cardWidth }}
-                  >
-                  {/* Floating Badge for Newly Created Task Node */}
-                  <AnimatePresence>
-                    {isNewlyCreated && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -12 }}
-                        className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 font-mono text-[10px] font-extrabold uppercase px-3 py-1 rounded-full bg-gradient-to-r from-brand-cyan via-purple-400 to-brand-pink text-black shadow-[0_0_20px_rgba(129,236,255,0.9)] flex items-center gap-1.5 whitespace-nowrap animate-bounce"
-                      >
-                        <Sparkles className="w-3 h-3 text-black fill-current" />
-                        <span>NEW OBJECTIVE CREATED HERE</span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  {/* Rotating Active Border Wrapper if Task is "Going On" (stops automatically when completed) */}
-                  <div 
-                    className={cn(
-                      isNewlyCreated 
-                        ? "newly-created-highlight-container" 
-                        : isActive 
-                          ? (isTeamup ? "teamup-rotating-container" : "active-rotating-container") 
-                          : ""
-                    )}
-                    style={{ '--active-color': cardThemeColor } as React.CSSProperties}
-                  >
-                    <div className={cn(
-                      "active-rotating-content relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300",
-                      isCompleted ? "border-emerald-500/50 bg-emerald-950/10 shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardBorderClass,
-                      isCompleted ? "shadow-[0_0_25px_rgba(16,185,129,0.25)]" : cardGlowClass,
-                      isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
-                    )}>
-                      
-                      {/* SVG Circumference Progress Overlay around entire card border */}
-                      <svg 
-                        className="absolute inset-0 w-full h-full pointer-events-none overflow-visible rounded-xl"
-                        style={{ zIndex: 2 }}
-                      >
-                        <rect
-                          x="0"
-                          y="0"
-                          width="100%"
-                          height="100%"
-                          rx="12"
-                          fill="none"
-                          stroke={isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor}
-                          strokeWidth="3"
-                          strokeDasharray={perimeter}
-                          strokeDashoffset={dashOffset}
-                          strokeLinecap="round"
-                          style={{
-                            transition: 'stroke-dashoffset 0.5s ease-out, stroke 0.3s ease',
-                            filter: completionRatio > 0 ? `drop-shadow(0 0 8px ${isCompleted ? '#10b981' : isTeamup ? '#e966ff' : cardThemeColor})` : 'none'
-                          }}
-                        />
-                      </svg>
-
-                      {/* Card Header: Owner Badge & Active/Connect Controls */}
-                      <div className="flex items-center justify-between mb-3 relative z-10">
-                        <div className="flex items-center gap-2">
-                          {isCompleted ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> COMPLETED
-                            </span>
-                          ) : isTeamup ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-extrabold bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border-white/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(233,102,255,0.3)]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-brand-cyan shadow-[0_0_6px_#81ecff]" />
-                              <span className="w-1.5 h-1.5 rounded-full bg-brand-pink shadow-[0_0_6px_#e966ff]" />
-                              AJAY + SELVAA
-                            </span>
-                          ) : (
-                            <span className={cn("px-2 py-0.5 rounded text-[10px] font-mono uppercase border font-bold", cardPillBg)}>
-                              {isAjay ? 'AJAY' : 'SELVAA'}
-                            </span>
-                          )}
-
-                          {/* Going On Active Badge */}
-                          {isActive && (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1 animate-pulse">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" /> GOING ON
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          {/* Toggle Active Task Button */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleToggleActive(t.id) }}
-                            title={isActive ? "Pause Active Task" : "Mark as Active / Going On"}
-                            className={cn(
-                              "p-1.5 rounded-lg border transition-all",
-                              isActive 
-                                ? "bg-amber-500/30 border-amber-400 text-amber-300" 
-                                : "border-white/10 text-white/30 hover:text-amber-300 hover:border-amber-400/50"
-                            )}
-                          >
-                            <Play className="w-3.5 h-3.5 fill-current" />
-                          </button>
-
-                          {/* Connect Link Button */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleNodeConnectClick(t.id) }}
-                            title="Connect task to another node"
-                            className={cn(
-                              "p-1.5 rounded-lg border transition-all",
-                              isSourceInConnecting 
-                                ? "bg-amber-400 text-black border-amber-400" 
-                                : "border-white/10 text-white/30 hover:text-white hover:border-white/30"
-                            )}
-                          >
-                            <LinkIcon className="w-3.5 h-3.5" />
-                          </button>
-
-                          {/* Delete Node Button */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteTaskNode(t.id) }}
-                            title="Delete Task Objective"
-                            className="p-1.5 rounded-lg border border-white/10 text-white/20 hover:text-brand-red hover:border-brand-red/40 transition-all"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Task Name Title (STABLE RENDER WITHOUT GLITCHING OR HEIGHT JUMPS) */}
-                      <div className="min-h-[44px] flex items-center relative z-10 mb-2">
-                        <h3 className="font-mono text-sm font-semibold tracking-wide text-white/90 line-clamp-2 leading-tight">
-                          {displayTitle}
-                        </h3>
-                      </div>
-
-                      {/* Meta Info: Category, Difficulty, XP, Duration */}
-                      <div className="flex items-center justify-between font-mono text-[10px] text-white/50 mb-3 border-b border-white/5 pb-2 relative z-10">
-                        <div className="flex items-center gap-2">
-                          <span className="uppercase text-white/40">{t.category}</span>
-                          <span>•</span>
-                          <span className="uppercase text-white/40">{t.difficulty}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-1 text-amber-300/80">
-                            <Clock className="w-3 h-3" /> {meta.duration_minutes || 45}m
-                          </span>
-                          <span className={cn("font-bold text-xs", isTeamup ? "bg-gradient-to-r from-brand-cyan to-brand-pink bg-clip-text text-transparent font-extrabold" : isAjay ? "text-brand-cyan" : "text-brand-pink")}>
-                            +{t.points} XP {isTeamup ? 'EACH' : ''}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Subtasks Checklist Section */}
-                      <div className="relative z-10 mb-2">
-                        <div className="flex items-center justify-between font-mono text-[9px] text-white/40 mb-1.5 uppercase tracking-wider">
-                          <span>SUBTASKS ({completedSubtasksCount}/{totalSubtasks})</span>
-                          {totalSubtasks > 0 && (
-                            <span className={cn("font-bold", completionRatio === 1 ? "text-emerald-400" : "text-amber-300")}>
-                              {Math.round(completionRatio * 100)}%
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-white/20">
-                          {subtasks.length === 0 ? (
-                            <div className="flex items-center justify-between text-[11px] font-mono text-white/30 py-1">
-                              <span>No subtasks assigned</span>
-                              <button
-                                onClick={() => handleToggleComplete(t.id)}
-                                className="flex items-center gap-1 text-[10px] text-brand-cyan hover:underline"
-                              >
-                                {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-cyan" /> : <Circle className="w-3.5 h-3.5" />}
-                                {isCompleted ? 'COMPLETED' : 'MARK DONE'}
-                              </button>
-                            </div>
-                          ) : (
-                            subtasks.map(st => (
-                              <div
-                                key={st.id}
-                                className="w-full flex items-center justify-between text-left p-1 rounded hover:bg-white/5 transition-colors group/sub"
-                              >
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleToggleSubtask(t.id, st.id) }}
-                                  className="flex items-center gap-2 min-w-0 flex-1 text-left"
-                                >
-                                  {st.completed ? (
-                                    <CheckSquare className={cn("w-3.5 h-3.5 shrink-0", isTeamup ? "text-purple-400" : isAjay ? "text-brand-cyan" : "text-brand-pink")} />
-                                  ) : (
-                                    <Square className="w-3.5 h-3.5 stroke-[1.5] text-white/30 group-hover/sub:text-white/60 shrink-0" />
-                                  )}
-                                  <span className={cn("font-mono text-[11px] truncate", st.completed ? "line-through text-white/30" : "text-white/80")}>
-                                    {st.title}
-                                  </span>
-                                </button>
-
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteSubtask(t.id, st.id) }}
-                                  className="opacity-0 group-hover/sub:opacity-100 p-0.5 text-white/30 hover:text-red-400 transition-opacity ml-1 shrink-0"
-                                  title="Delete Subtask"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Add Subtask Quick Input */}
-                      <div className="flex items-center gap-1 relative z-10">
-                        <input
-                          value={inlineSubtaskInput[t.id] || ''}
-                          onChange={(e) => setInlineSubtaskInput({ ...inlineSubtaskInput, [t.id]: e.target.value })}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleAddInlineSubtask(t.id) }}
-                          placeholder="+ Add subtask..."
-                          className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 font-mono text-[10px] outline-none focus:border-white/30 text-white/80"
-                        />
-                        <button
-                          onClick={() => handleAddInlineSubtask(t.id)}
-                          className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded font-mono text-[10px] text-white/70"
-                        >
-                          ADD
-                        </button>
-                      </div>
-
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })
-          )}
+                  />
+                )
+              })
+            )}
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Deploy New Objective Slide-over Modal */}
       <AnimatePresence>
@@ -1302,14 +1137,5 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
       </AnimatePresence>
 
     </div>
-  )
-}
-
-// Simple Helper Square Icon for checkboxes
-function Square({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="3" width="18" height="18" rx="3" />
-    </svg>
   )
 }

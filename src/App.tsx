@@ -12,7 +12,8 @@ import {
   loadTaskSubtasks,
   loadTaskMeta,
   loadTaskPositions,
-  loadTaskConnections
+  loadTaskConnections,
+  calculateDailyUserPoints
 } from './lib/canvasUtils'
 import { subscribeRealtimeSync } from './lib/realtimeSync'
 import { Sidebar } from './components/Sidebar'
@@ -73,7 +74,7 @@ export default function App() {
           if (meta.completed !== undefined || meta.is_active !== undefined || meta.duration_minutes || meta.start_time) {
             rawMeta[t.id] = { ...rawMeta[t.id], ...meta }
           }
-          if (meta.pos) {
+          if (meta.pos && !rawPositions[t.id]) {
             rawPositions[t.id] = meta.pos
           }
           if (meta.connectedTo) {
@@ -86,7 +87,7 @@ export default function App() {
             subtasks: meta.subtasks || rawSubtasks[t.id] || [],
             completed: meta.completed !== undefined ? meta.completed : rawMeta[t.id]?.completed || false,
             is_active: meta.is_active !== undefined ? meta.is_active : rawMeta[t.id]?.is_active || false,
-            pos: meta.pos || rawPositions[t.id],
+            pos: rawPositions[t.id] || meta.pos,
           }
         })
 
@@ -157,6 +158,12 @@ export default function App() {
       return () => clearTimeout(timer)
     }
   }, [notification])
+
+  // Regularly trigger syncTick to keep live Daily Champ points updated in real-time
+  useEffect(() => {
+    const interval = setInterval(() => setSyncTick(t => t + 1), 3000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleCreateTask = async (
     title: string, 
@@ -262,8 +269,8 @@ export default function App() {
   const theme = currentUser === AJAY_ID ? 'cyan' : 'pink'
 
   const todayStr = new Date().toDateString()
-  const todayAjayPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === AJAY_ID || isTeamup(t)) && isTaskCompleted(t.id, t)).reduce((s, t) => s + t.points, 0) || 0
-  const todaySelvaaPoints = tasks.filter(t => new Date(t.created_at).toDateString() === todayStr && (t.user_id === SELVAA_ID || isTeamup(t)) && isTaskCompleted(t.id, t)).reduce((s, t) => s + t.points, 0) || 0
+  const todayAjayPoints = calculateDailyUserPoints(AJAY_ID, tasks)
+  const todaySelvaaPoints = calculateDailyUserPoints(SELVAA_ID, tasks)
 
   return (
     <div className="flex min-h-screen bg-black">
@@ -341,7 +348,7 @@ export default function App() {
            {currentTab === 'history' && <HistoryScreen tasks={tasks} />}
            {currentTab === 'analytics' && <AnalyticsScreen tasks={tasks} />}
            {currentTab === 'profile' && <ProfileScreen tasks={tasks} currentUser={currentUser} points={currentUser === AJAY_ID ? ajayPoints : selvaaPoints} />}
-           {currentTab === 'champion' && <ChampionScreen ajayPoints={todayAjayPoints} selvaaPoints={todaySelvaaPoints} />}
+           {currentTab === 'champion' && <ChampionScreen ajayPoints={todayAjayPoints} selvaaPoints={todaySelvaaPoints} tasks={tasks} />}
          </main>
          
          {/* Mobile Swipeable Command Matrix */}

@@ -35,8 +35,8 @@ export function CountdownTimer() {
       <div className="text-white/50 text-sm mb-2 font-medium tracking-widest uppercase">Reset Timer</div>
       <motion.div 
         className={cn(
-          "font-mono text-5xl md:text-7xl font-bold tabular-nums tracking-tighter transition-all duration-1000",
-          isRushMode ? "text-brand-red rush-mode-pulse bg-brand-red/10 border-brand-red/50 rounded-2xl px-8 py-4 border-2" : "text-white"
+          "font-mono text-5xl md:text-7xl font-bold tabular-nums tracking-tighter transition-all duration-500",
+          isRushMode ? "text-brand-red text-glow-red rush-text-pulse" : "text-white text-glow-cyan"
         )}
       >
         {timeLeft}
@@ -45,9 +45,10 @@ export function CountdownTimer() {
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-brand-red font-bold mt-3 animate-pulse text-sm"
+          className="mt-3 flex items-center gap-2 border border-brand-red/60 bg-brand-red/10 px-4 py-1 rounded-full rush-mode-pulse"
         >
-          RUSH MODE ACTIVATED
+          <span className="w-2 h-2 rounded-full bg-brand-red animate-ping" />
+          <span className="text-brand-red font-mono text-xs font-bold tracking-widest uppercase">RUSH MODE ACTIVATED</span>
         </motion.div>
       )}
     </div>

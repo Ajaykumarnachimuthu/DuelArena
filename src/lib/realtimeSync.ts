@@ -16,13 +16,15 @@ type SyncCallback = (payload: RealtimeSyncPayload) => void
 const listeners: Set<SyncCallback> = new Set()
 let syncChannel: ReturnType<typeof supabase.channel> | null = null
 
+export const CLIENT_ID = Math.random().toString(36).substring(2, 11)
+
 // Initialize Supabase Broadcast Channel for cross-device real-time sync
 export function initRealtimeSync(): void {
   if (syncChannel) return
 
   syncChannel = supabase.channel('arena-sync', {
     config: {
-      broadcast: { self: true } // Receive events on all connected clients and tabs
+      broadcast: { self: false } // Prevent duplicate self broadcast loop back
     }
   })
 
@@ -31,7 +33,10 @@ export function initRealtimeSync(): void {
       if (response.payload) {
         const payload = response.payload as RealtimeSyncPayload
         
-        // Update local storage cache immediately upon receiving broadcast
+        // Ignore self-emitted broadcasts
+        if (payload.senderId === CLIENT_ID) return
+
+        // Update local storage cache immediately upon receiving broadcast from another tab/device
         if (payload.taskId && payload.meta) {
           try {
             const META_KEY = 'habit_arena_task_meta_v1'
@@ -56,6 +61,18 @@ export function initRealtimeSync(): void {
           }
         }
 
+        if (payload.taskId && payload.position) {
+          try {
+            const POSITIONS_KEY = 'habit_arena_task_positions_v1'
+            const raw = localStorage.getItem(POSITIONS_KEY)
+            const current = raw ? JSON.parse(raw) : {}
+            current[payload.taskId] = payload.position
+            localStorage.setItem(POSITIONS_KEY, JSON.stringify(current))
+          } catch (e) {
+            console.error('Failed to update position cache from broadcast:', e)
+          }
+        }
+
         // Notify all registered React state listeners
         listeners.forEach(fn => fn(payload))
       }
@@ -69,9 +86,9 @@ export function broadcastTaskMetaUpdate(taskId: string, meta: TaskMeta): void {
   const payload: RealtimeSyncPayload = {
     type: 'META_UPDATE',
     taskId,
-    meta
+    meta,
+    senderId: CLIENT_ID
   }
-  listeners.forEach(fn => fn(payload))
   if (syncChannel) {
     syncChannel.send({
       type: 'broadcast',
@@ -87,9 +104,9 @@ export function broadcastSubtaskUpdate(taskId: string, subtasks: SubTask[]): voi
   const payload: RealtimeSyncPayload = {
     type: 'SUBTASK_UPDATE',
     taskId,
-    subtasks
+    subtasks,
+    senderId: CLIENT_ID
   }
-  listeners.forEach(fn => fn(payload))
   if (syncChannel) {
     syncChannel.send({
       type: 'broadcast',
@@ -105,9 +122,9 @@ export function broadcastCanvasUpdate(taskId: string, position?: { x: number; y:
   const payload: RealtimeSyncPayload = {
     type: 'CANVAS_UPDATE',
     taskId,
-    position
+    position,
+    senderId: CLIENT_ID
   }
-  listeners.forEach(fn => fn(payload))
   if (syncChannel) {
     syncChannel.send({
       type: 'broadcast',
