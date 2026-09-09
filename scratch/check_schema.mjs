@@ -6,9 +6,9 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 async function checkSchema() {
-  const { data, error } = await supabase.from('tasks').select('*').limit(2)
+  const { data, error } = await supabase.from('events').select('*').limit(2)
   console.log('Error:', error)
-  console.log('Sample Tasks Data:', JSON.stringify(data, null, 2))
+  console.log('Sample Events Data:', JSON.stringify(data, null, 2))
 }
 
 checkSchema()

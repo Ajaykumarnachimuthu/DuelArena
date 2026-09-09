@@ -65,29 +65,45 @@ export default function App() {
         const rawPositions = loadTaskPositions()
         const rawConnections = loadTaskConnections()
 
-        const parsedTasks = (data as Task[]).map(t => {
+        const parsedTasks: Task[] = []
+        const parsedEvents: EventItem[] = []
+
+        ;(data as Task[]).forEach(t => {
           const { title: cleanTitle, meta } = extractTaskTitleAndMeta(t.title)
           
-          if (meta.subtasks && Array.isArray(meta.subtasks)) {
-            rawSubtasks[t.id] = meta.subtasks
-          }
-          if (meta.completed !== undefined || meta.is_active !== undefined || meta.duration_minutes || meta.start_time) {
-            rawMeta[t.id] = { ...rawMeta[t.id], ...meta }
-          }
-          if (meta.pos && !rawPositions[t.id]) {
-            rawPositions[t.id] = meta.pos
-          }
-          if (meta.connectedTo) {
-            rawConnections[t.id] = meta.connectedTo
-          }
+          if (t.difficulty === 'Event' || meta.isEvent) {
+            parsedEvents.push({
+              id: t.id,
+              created_at: t.created_at,
+              title: cleanTitle,
+              user_id: t.user_id,
+              category: t.category,
+              deadline: meta.deadline || new Date().toISOString().split('T')[0],
+              link: meta.link,
+              completed: meta.completed || false
+            })
+          } else {
+            if (meta.subtasks && Array.isArray(meta.subtasks)) {
+              rawSubtasks[t.id] = meta.subtasks
+            }
+            if (meta.completed !== undefined || meta.is_active !== undefined || meta.duration_minutes || meta.start_time) {
+              rawMeta[t.id] = { ...rawMeta[t.id], ...meta }
+            }
+            if (meta.pos && !rawPositions[t.id]) {
+              rawPositions[t.id] = meta.pos
+            }
+            if (meta.connectedTo) {
+              rawConnections[t.id] = meta.connectedTo
+            }
 
-          return {
-            ...t,
-            title: cleanTitle,
-            subtasks: meta.subtasks || rawSubtasks[t.id] || [],
-            completed: meta.completed !== undefined ? meta.completed : rawMeta[t.id]?.completed || false,
-            is_active: meta.is_active !== undefined ? meta.is_active : rawMeta[t.id]?.is_active || false,
-            pos: rawPositions[t.id] || meta.pos,
+            parsedTasks.push({
+              ...t,
+              title: cleanTitle,
+              subtasks: meta.subtasks || rawSubtasks[t.id] || [],
+              completed: meta.completed !== undefined ? meta.completed : rawMeta[t.id]?.completed || false,
+              is_active: meta.is_active !== undefined ? meta.is_active : rawMeta[t.id]?.is_active || false,
+              pos: rawPositions[t.id] || meta.pos,
+            })
           }
         })
 
@@ -101,6 +117,30 @@ export default function App() {
         }
 
         setTasks(parsedTasks)
+        setEvents(parsedEvents)
+
+        // One-time migration for local events
+        try {
+          const rawLocalEvents = localStorage.getItem(EVENTS_KEY)
+          if (rawLocalEvents) {
+            const localEvents: EventItem[] = JSON.parse(rawLocalEvents)
+            if (localEvents.length > 0) {
+              for (const ev of localEvents) {
+                await supabase.from('tasks').insert({
+                  user_id: ev.user_id,
+                  title: buildTaskTitleWithMeta(ev.title, { isEvent: true, deadline: ev.deadline, link: ev.link, completed: ev.completed }),
+                  difficulty: 'Event',
+                  points: 0,
+                  category: ev.category
+                })
+              }
+            }
+            localStorage.removeItem(EVENTS_KEY)
+            fetchTasks() // fetch again to include migrated
+            return
+          }
+        } catch (e) {}
+
       } else {
         console.error("Supabase fetch error", error)
       }
@@ -225,45 +265,43 @@ export default function App() {
     }
   }
 
-  // Event Session Handlers
-  const handleCreateEvent = (title: string, deadline: string, link?: string, category?: string, userId?: string) => {
-    const newEv: EventItem = {
-      id: `ev_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-      user_id: userId || currentUser,
-      title,
-      deadline,
-      link,
-      category: category || 'Event',
-      completed: false,
-      created_at: new Date().toISOString()
+  // Event Session Handlers (Synced to Supabase)
+  const handleCreateEvent = async (title: string, deadline: string, link?: string, category?: string, userId?: string) => {
+    const rawTitle = buildTaskTitleWithMeta(title, { isEvent: true, deadline, link, completed: false })
+    try {
+      const { error } = await supabase.from('tasks').insert({
+        user_id: userId || currentUser,
+        title: rawTitle,
+        difficulty: 'Event',
+        points: 0,
+        category: category || 'Event'
+      })
+      if (error) throw error
+    } catch (e) {
+      console.error('Insert Event failed:', e)
     }
-    setEvents(prev => {
-      const updated = [newEv, ...prev]
-      try {
-        localStorage.setItem(EVENTS_KEY, JSON.stringify(updated))
-      } catch (e) {}
-      return updated
-    })
   }
 
-  const handleToggleEvent = (id: string) => {
-    setEvents(prev => {
-      const updated = prev.map(ev => ev.id === id ? { ...ev, completed: !ev.completed } : ev)
-      try {
-        localStorage.setItem(EVENTS_KEY, JSON.stringify(updated))
-      } catch (e) {}
-      return updated
-    })
+  const handleToggleEvent = async (id: string) => {
+    const ev = events.find(e => e.id === id)
+    if (!ev) return
+
+    const rawTitle = buildTaskTitleWithMeta(ev.title, { isEvent: true, deadline: ev.deadline, link: ev.link, completed: !ev.completed })
+    try {
+      const { error } = await supabase.from('tasks').update({ title: rawTitle }).eq('id', id)
+      if (error) throw error
+    } catch (e) {
+      console.error('Toggle Event failed:', e)
+    }
   }
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(prev => {
-      const updated = prev.filter(ev => ev.id !== id)
-      try {
-        localStorage.setItem(EVENTS_KEY, JSON.stringify(updated))
-      } catch (e) {}
-      return updated
-    })
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      const { error } = await supabase.from('tasks').delete().eq('id', id)
+      if (error) throw error
+    } catch (e) {
+      console.error('Delete Event failed:', e)
+    }
   }
 
   const theme = currentUser === AJAY_ID ? 'cyan' : 'pink'
