@@ -16,7 +16,7 @@ import {
   Plus, Link as LinkIcon, 
   Clock, Move, ZoomIn, ZoomOut, 
   Layout, Eye, Sparkles, X, Grid as GridIcon, Users, RotateCcw,
-  Minimize2, CheckCircle2, Circle, Play, Trash2, CheckSquare, Square
+  Minimize2, Maximize2, CheckCircle2, Circle, Play, Trash2, CheckSquare, Square
 } from 'lucide-react'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -45,11 +45,14 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   // Date Scope Filter state: 'today' | 'all'
   const [dateFilter, setDateFilter] = useState<'today' | 'all'>('today')
 
-  // Connection linking mode state: source task ID
+  // Connecting node states
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null)
 
   // Expanded task card focus modal state
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
+
+  // Fullscreen Canvas mode state
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -619,7 +622,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
     <div className="max-w-7xl mx-auto w-full space-y-6 pb-24 pt-4 fade-in">
       
       {/* Control Matrix Toolbar */}
-      <div className="glass-panel p-3.5 sm:p-4 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4 cyber-border shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+      <div className="glass-panel shrink-0 p-3.5 sm:p-4 rounded-2xl flex flex-col xl:flex-row xl:items-center justify-between gap-3 sm:gap-4 cyber-border shadow-[0_0_30px_rgba(0,0,0,0.8)]">
         
         {/* Left Block: Title & Filter Matrix */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
@@ -747,6 +750,14 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
               >
                 <RotateCcw className="w-3 h-3" /> RESET
               </button>
+              <div className="h-3 w-[1px] bg-white/10 my-auto mx-0.5" />
+              <button
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                className="p-1 text-brand-cyan/70 hover:text-brand-cyan"
+                title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Canvas"}
+              >
+                {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
             </div>
           </div>
 
@@ -799,7 +810,12 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        className="relative w-full h-[650px] sm:h-[750px] rounded-3xl overflow-hidden border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas cursor-grab active:cursor-grabbing select-none blueprint-grid"
+        className={cn(
+          "w-full overflow-hidden border border-white/10 bg-black/90 shadow-[inset_0_0_50px_rgba(0,0,0,0.9)] touch-canvas cursor-grab active:cursor-grabbing select-none blueprint-grid",
+          isFullscreen 
+            ? "fixed inset-0 z-[100] rounded-none" 
+            : "relative h-[650px] sm:h-[750px] rounded-3xl"
+        )}
         style={{
           backgroundPosition: `${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px, ${pan.x}px ${pan.y}px`,
           backgroundSize: `${64 * zoom}px ${64 * zoom}px, ${64 * zoom}px ${64 * zoom}px, ${16 * zoom}px ${16 * zoom}px, ${16 * zoom}px ${16 * zoom}px`
@@ -811,6 +827,17 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           <Move className="w-3.5 h-3.5 text-brand-cyan" />
           <span>2-FINGER TOUCH / DRAG TO PAN X & Y // PINCH TO ZOOM</span>
         </div>
+
+        {/* Floating Exit Fullscreen Button (Only visible in fullscreen) */}
+        {isFullscreen && (
+          <button
+            onClick={() => setIsFullscreen(false)}
+            className="absolute top-4 right-4 z-30 p-2.5 bg-black/80 backdrop-blur-md border border-brand-cyan/40 text-brand-cyan hover:bg-brand-cyan/20 hover:text-white rounded-xl shadow-[0_0_20px_rgba(129,236,255,0.3)] transition-all flex items-center gap-2 font-mono text-xs"
+            title="Exit Fullscreen Canvas"
+          >
+            <Minimize2 className="w-4 h-4" /> EXIT FULLSCREEN
+          </button>
+        )}
 
         {connectingSourceId && (
           <div className="absolute top-4 right-4 z-20 font-mono text-xs text-amber-300 bg-amber-950/80 backdrop-blur-md px-4 py-2 rounded-xl border border-amber-500/40 animate-pulse flex items-center gap-2">
