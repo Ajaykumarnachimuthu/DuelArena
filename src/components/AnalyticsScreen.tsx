@@ -4,6 +4,8 @@ import { Task } from '../lib/types'
 import { cn } from '../lib/utils'
 import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 import { Zap, CheckCircle2, AlertTriangle, TrendingUp, Award, Layers } from 'lucide-react'
+import { HoverMarqueeText } from './HoverMarqueeText'
+
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
 const SELVAA_ID = '7d01b3e6-3d10-41fe-a22d-1c26d43de0df'
@@ -200,8 +202,11 @@ export function AnalyticsScreen({ tasks }: AnalyticsProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {activeTasks.map(t => (
               <div key={t.id} className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/10 flex items-center justify-between">
-                <div>
-                  <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[160px]">{extractTaskTitleAndMeta(t.title).title}</div>
+                <div className="max-w-[160px]">
+                  <HoverMarqueeText
+                    text={extractTaskTitleAndMeta(t.title).title}
+                    className="font-mono text-xs font-bold text-white/90"
+                  />
                   <div className="font-mono text-[10px] text-white/40 mt-0.5">{t.category}</div>
                 </div>
                 <motion.div
@@ -213,6 +218,7 @@ export function AnalyticsScreen({ tasks }: AnalyticsProps) {
                   <span>ON PROGRESS</span>
                 </motion.div>
               </div>
+
             ))}
           </div>
         </div>

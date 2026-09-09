@@ -265,3 +265,13 @@
   user-select: none;
 }
 
+@keyframes hover-scroll-marquee {
+  0%, 15% {
+    transform: translateX(0);
+  }
+  85%, 100% {
+    transform: translateX(var(--marquee-shift, 0px));
+  }
+}
+
+

@@ -5,6 +5,8 @@ import { Task, getRank, getLevelNumber } from '../lib/types'
 import { cn } from '../lib/utils'
 import { UserCircle2, Zap, CheckCircle2, Clock, ShieldCheck, Flame } from 'lucide-react'
 import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
+import { HoverMarqueeText } from './HoverMarqueeText'
+
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
 
@@ -280,10 +282,14 @@ export function ProfileScreen({ tasks, currentUser, points }: ProfileProps) {
                   <div key={t.id} className={cn("flex justify-between items-center bg-white/[0.02] p-3 rounded-xl border hover:bg-white/[0.05] transition-colors", `${borderCol}/10`)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <Zap className={cn("w-4 h-4 opacity-70 shrink-0", textColor)} />
-                      <div className="min-w-0">
-                        <div className="font-mono text-xs font-bold text-white/90 truncate max-w-[160px] sm:max-w-[220px]">{extractTaskTitleAndMeta(t.title).title}</div>
+                      <div className="min-w-0 max-w-[160px] sm:max-w-[220px]">
+                        <HoverMarqueeText
+                          text={extractTaskTitleAndMeta(t.title).title}
+                          className="font-mono text-xs font-bold text-white/90"
+                        />
                         <div className="font-mono text-[9px] text-white/40 tracking-widest mt-0.5">{t.category} // {new Date(t.created_at).toLocaleDateString()}</div>
                       </div>
+
                     </div>
 
                     {/* Status Badge */}

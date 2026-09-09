@@ -2,6 +2,8 @@ import { Task } from '../lib/types'
 import { motion } from 'framer-motion'
 import { Zap, CheckCircle2 } from 'lucide-react'
 import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
+import { HoverMarqueeText } from './HoverMarqueeText'
+
 
 // Hardcoded for splitting just the UI visually since history requires distinct opponent columns
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -97,13 +99,17 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                       const completed = isTaskCompleted(t.id, t)
                       return (
                         <div key={t.id} className="flex justify-between items-center bg-brand-cyan/5 p-3.5 rounded-xl border border-brand-cyan/10 hover:bg-brand-cyan/10 transition-colors">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 min-w-0 max-w-[200px] sm:max-w-[300px]">
                             <Zap className="w-4 h-4 text-brand-cyan opacity-70 shrink-0" />
-                            <div>
-                              <div className="font-mono text-xs font-bold text-white/90">{extractTaskTitleAndMeta(t.title).title}</div>
+                            <div className="min-w-0 flex-1">
+                              <HoverMarqueeText
+                                text={extractTaskTitleAndMeta(t.title).title}
+                                className="font-mono text-xs font-bold text-white/90"
+                              />
                               <div className="font-mono text-[10px] text-white/40 tracking-widest mt-0.5">{t.category}</div>
                             </div>
                           </div>
+
 
                           {/* Status Badge: Pulsing & Shrinking ON PROGRESS vs COMPLETED */}
                           {active ? (
@@ -146,13 +152,17 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                     const completed = isTaskCompleted(t.id, t)
                     return (
                       <div key={t.id} className="flex justify-between items-center bg-brand-pink/5 p-3.5 rounded-xl border border-brand-pink/10 hover:bg-brand-pink/10 transition-colors">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0 max-w-[200px] sm:max-w-[300px]">
                           <Zap className="w-4 h-4 text-brand-pink opacity-70 shrink-0" />
-                          <div>
-                            <div className="font-mono text-xs font-bold text-white/90">{extractTaskTitleAndMeta(t.title).title}</div>
+                          <div className="min-w-0 flex-1">
+                            <HoverMarqueeText
+                              text={extractTaskTitleAndMeta(t.title).title}
+                              className="font-mono text-xs font-bold text-white/90"
+                            />
                             <div className="font-mono text-[10px] text-white/40 tracking-widest mt-0.5">{t.category}</div>
                           </div>
                         </div>
+
 
                         {/* Status Badge: Pulsing & Shrinking ON PROGRESS vs COMPLETED */}
                         {active ? (

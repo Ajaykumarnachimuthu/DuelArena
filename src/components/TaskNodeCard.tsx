@@ -7,6 +7,8 @@ import {
   Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
   Clock, CheckSquare, Sparkles, X
 } from 'lucide-react'
+import { HoverMarqueeText } from './HoverMarqueeText'
+
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
 
@@ -310,9 +312,11 @@ export const TaskNodeCard = memo(function TaskNodeCard({
                       ) : (
                         <Square className="w-3.5 h-3.5 stroke-[1.5] text-white/30 group-hover/sub:text-white/60 shrink-0" />
                       )}
-                      <span className={cn("font-mono text-[11px] truncate", st.completed ? "line-through text-white/30" : "text-white/80")}>
-                        {st.title}
-                      </span>
+                      <HoverMarqueeText
+                        text={st.title}
+                        className={cn("font-mono text-[11px]", st.completed ? "line-through text-white/30" : "text-white/80")}
+                      />
+
                     </button>
 
                     <button
