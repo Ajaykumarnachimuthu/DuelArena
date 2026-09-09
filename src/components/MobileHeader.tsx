@@ -36,7 +36,6 @@ export function MobileHeader({
   }
 
   const activeMeta = titles[currentTab] || { label: 'HABIT_ARENA', icon: LayoutDashboard }
-  const Icon = activeMeta.icon
 
   const activeColor = theme === 'cyan' ? 'text-brand-cyan' : 'text-brand-pink'
   const badgeBorder = theme === 'cyan' ? 'border-brand-cyan/40 bg-brand-cyan/10' : 'border-brand-pink/40 bg-brand-pink/10'
@@ -45,9 +44,7 @@ export function MobileHeader({
     <header className="md:hidden sticky top-0 z-40 w-full bg-black/80 backdrop-blur-2xl border-b border-white/10 px-4 py-3 flex items-center justify-between transition-colors duration-500">
       {/* Title & Screen Icon */}
       <div className="flex items-center gap-2.5">
-        <div className={cn("p-1.5 rounded-lg border border-white/10 bg-white/5", activeColor)}>
-          <Icon className="w-4 h-4" />
-        </div>
+        <img src="/logo.png" alt="Logo" className="w-7 h-7 rounded-lg border border-white/20 shadow-[0_0_10px_rgba(129,236,255,0.4)] object-cover" />
         <div>
           <h1 className="font-display text-xs tracking-wider text-white font-bold leading-none">
             {activeMeta.label}

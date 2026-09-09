@@ -38,9 +38,18 @@ export function Sidebar({ currentTab, setTab, points, theme, currentUser, setCur
   return (
     <div className="w-64 h-screen fixed left-0 top-0 border-r border-white/5 bg-black/50 backdrop-blur-2xl flex flex-col z-40 hidden md:flex transition-colors duration-1000">
       
+      {/* Brand Logo Header */}
+      <div className="p-4 border-b border-white/10 flex items-center gap-3 bg-gradient-to-r from-brand-cyan/10 via-black to-brand-pink/10">
+        <img src="/logo.png" alt="Duel Arena Logo" className="w-9 h-9 rounded-lg border border-white/20 shadow-[0_0_15px_rgba(129,236,255,0.4)] object-cover" />
+        <div>
+          <h1 className="font-display font-black text-sm tracking-wider text-white leading-none">DUEL_ARENA</h1>
+          <span className="font-mono text-[9px] text-white/40 tracking-widest uppercase">HABIT ARENA DIRECTIVE</span>
+        </div>
+      </div>
+
       {/* Profile Section */}
-      <div className="p-6 border-b border-white/5">
-        <div className="flex items-center gap-4 mb-4">
+      <div className="p-4 border-b border-white/5">
+        <div className="flex items-center gap-3">
           <div className={cn("w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl glow-avatar transition-colors", bgColor, borderCol, textColor)}>
             {theme === 'cyan' ? 'A' : 'S'}
           </div>

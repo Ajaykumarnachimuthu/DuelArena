@@ -5,7 +5,7 @@ import { TaskMeta, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 import { cn } from '../lib/utils'
 import { 
   Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
-  Clock, CheckSquare, Sparkles, X
+  Clock, CheckSquare, Sparkles, X, Maximize2
 } from 'lucide-react'
 import { HoverMarqueeText } from './HoverMarqueeText'
 
@@ -31,6 +31,7 @@ interface TaskNodeCardProps {
   onDeleteTaskNode: () => void
   onDrag: (info: { offset: { x: number; y: number } }) => void
   onDragEnd: (info: { offset: { x: number; y: number } }) => void
+  onExpand?: () => void
 }
 
 export const TaskNodeCard = memo(function TaskNodeCard({
@@ -51,7 +52,8 @@ export const TaskNodeCard = memo(function TaskNodeCard({
   onNodeConnectClick,
   onDeleteTaskNode,
   onDrag,
-  onDragEnd
+  onDragEnd,
+  onExpand
 }: TaskNodeCardProps) {
   const x = useMotionValue(0)
   const y = useMotionValue(0)
@@ -153,12 +155,21 @@ export const TaskNodeCard = memo(function TaskNodeCard({
         )}
         style={{ '--active-color': cardThemeColor } as React.CSSProperties}
       >
-        <div className={cn(
-          "active-rotating-content relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300",
-          isCompleted ? completedBorderClass : cardBorderClass,
-          isCompleted ? "" : cardGlowClass,
-          isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
-        )}>
+        <div 
+          onDoubleClick={(e) => {
+            const target = e.target as HTMLElement
+            if (target.closest('button') || target.closest('input') || target.closest('select') || target.closest('.subtask-scroll-area')) {
+              return
+            }
+            if (onExpand) onExpand()
+          }}
+          className={cn(
+            "active-rotating-content relative glass-panel p-4 rounded-xl border backdrop-blur-2xl transition-all duration-300",
+            isCompleted ? completedBorderClass : cardBorderClass,
+            isCompleted ? "" : cardGlowClass,
+            isSourceInConnecting ? "ring-2 ring-amber-400 border-amber-400" : ""
+          )}
+        >
           
           {/* SVG Circumference Progress Overlay around card border when subtasks/task completed */}
           {completionRatio > 0 && (
@@ -214,6 +225,16 @@ export const TaskNodeCard = memo(function TaskNodeCard({
             </div>
 
             <div className="flex items-center gap-1">
+              {onExpand && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onExpand() }}
+                  title="Expand / Pop up Task Objective"
+                  className="p-1.5 rounded-lg border border-white/10 text-white/30 hover:text-brand-cyan hover:border-brand-cyan/40 transition-all"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               <button
                 onClick={(e) => { e.stopPropagation(); onToggleActive() }}
                 title={isActive ? "Pause Active Task" : "Mark as Active / Going On"}

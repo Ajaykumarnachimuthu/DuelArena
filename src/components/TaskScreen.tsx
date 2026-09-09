@@ -7,14 +7,16 @@ import {
   loadTaskConnections, saveTaskConnections, 
   loadTaskSubtasks, saveTaskSubtasks, 
   loadTaskMeta, saveTaskMeta,
-  calculateSmartBezierPath
+  calculateSmartBezierPath,
+  extractTaskTitleAndMeta
 } from '../lib/canvasUtils'
 import { subscribeRealtimeSync } from '../lib/realtimeSync'
 import { TaskNodeCard } from './TaskNodeCard'
 import { 
   Plus, Link as LinkIcon, 
   Clock, Move, ZoomIn, ZoomOut, 
-  Layout, Eye, Sparkles, X, Grid as GridIcon, Users, RotateCcw
+  Layout, Eye, Sparkles, X, Grid as GridIcon, Users, RotateCcw,
+  Minimize2, CheckCircle2, Circle, Play, Trash2, CheckSquare, Square
 } from 'lucide-react'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -45,6 +47,19 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
 
   // Connection linking mode state: source task ID
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null)
+
+  // Expanded task card focus modal state
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedTaskId(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Local augmented task state maps
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({})
@@ -961,6 +976,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     onToggleComplete={() => handleToggleComplete(t.id)}
                     onNodeConnectClick={() => handleNodeConnectClick(t.id)}
                     onDeleteTaskNode={() => handleDeleteTaskNode(t.id)}
+                    onExpand={() => setExpandedTaskId(t.id)}
                     onDrag={(info) => {
                       updateDOMFlowlines(t.id, info.offset.x, info.offset.y)
                     }}
@@ -1134,6 +1150,245 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Expanded Task Objective Modal Overlay */}
+      <AnimatePresence>
+        {expandedTaskId && (() => {
+          const expTask = tasks.find(t => t.id === expandedTaskId)
+          if (!expTask) return null
+
+          const expSubtasks = (subtasksMap[expTask.id] && subtasksMap[expTask.id].length > 0)
+            ? subtasksMap[expTask.id]
+            : (expTask.subtasks || [])
+          
+          const expMeta = {
+            duration_minutes: 45,
+            start_time: '09:00 AM',
+            completed: expTask.completed,
+            is_active: expTask.is_active,
+            ...metaMap[expTask.id]
+          }
+
+          const { title: expDisplayTitle } = extractTaskTitleAndMeta(expTask.title)
+          const isTeamup = expTask.category === 'Teamup' || expTask.difficulty === 'Teamup'
+          const isAjay = expTask.user_id === AJAY_ID
+          const completedSubtasksCount = expSubtasks.filter(st => st.completed).length
+          const totalSubtasks = expSubtasks.length
+          const isCompleted = expMeta.completed || (totalSubtasks > 0 && completedSubtasksCount === totalSubtasks)
+          const isActive = !isCompleted && (expMeta.is_active || false)
+
+          let completionRatio = 0
+          if (totalSubtasks > 0) {
+            completionRatio = completedSubtasksCount / totalSubtasks
+          } else if (isCompleted) {
+            completionRatio = 1
+          }
+
+          const cardPillBg = isAjay ? 'bg-brand-cyan/15 text-brand-cyan border-brand-cyan/30' : 'bg-brand-pink/15 text-brand-pink border-brand-pink/30'
+          const borderColClass = isTeamup 
+            ? 'border-purple-400/80' 
+            : isAjay ? 'border-brand-cyan/60' : 'border-brand-pink/60'
+
+          return (
+            <div 
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fade-in"
+              onClick={() => setExpandedTaskId(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className={cn(
+                  "glass-panel p-6 md:p-8 rounded-3xl max-w-2xl w-full border relative shadow-[0_0_80px_rgba(0,0,0,0.95)] max-h-[85vh] flex flex-col justify-between overflow-hidden",
+                  borderColClass
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header bar */}
+                <div>
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {isCompleted ? (
+                        <span className="px-2.5 py-1 rounded text-xs font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-extrabold flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.4)]">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" /> COMPLETED
+                        </span>
+                      ) : isTeamup ? (
+                        <span className="px-2.5 py-1 rounded text-xs font-mono uppercase border font-extrabold bg-gradient-to-r from-brand-cyan/20 to-brand-pink/20 text-white border-white/20 flex items-center gap-1.5 shadow-[0_0_12px_rgba(233,102,255,0.4)]">
+                          <span className="w-2 h-2 rounded-full bg-brand-cyan shadow-[0_0_6px_#81ecff]" />
+                          <span className="w-2 h-2 rounded-full bg-brand-pink shadow-[0_0_6px_#e966ff]" />
+                          AJAY + SELVAA
+                        </span>
+                      ) : (
+                        <span className={cn("px-2.5 py-1 rounded text-xs font-mono uppercase border font-bold", cardPillBg)}>
+                          {isAjay ? 'AJAY' : 'SELVAA'}
+                        </span>
+                      )}
+
+                      {isActive && (
+                        <span className="px-2.5 py-1 rounded text-xs font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1.5 animate-pulse">
+                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" /> GOING ON
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action Controls & Close Toggle */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleActive(expTask.id)}
+                        title={isActive ? "Pause Active Task" : "Mark as Active / Going On"}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl border text-xs font-mono flex items-center gap-1.5 transition-all",
+                          isActive 
+                            ? "bg-amber-500/30 border-amber-400 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)]" 
+                            : "border-white/10 text-white/40 hover:text-amber-300 hover:border-amber-400/50"
+                        )}
+                      >
+                        <Play className="w-4 h-4 fill-current" />
+                        <span>{isActive ? 'PAUSE' : 'START'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleDeleteTaskNode(expTask.id)
+                          setExpandedTaskId(null)
+                        }}
+                        title="Delete Task Directive"
+                        className="p-2 rounded-xl border border-white/10 text-white/30 hover:text-brand-red hover:border-brand-red/40 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+
+                      <button 
+                        onClick={() => setExpandedTaskId(null)} 
+                        className="p-2 rounded-xl border border-white/20 bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-all flex items-center gap-1"
+                        title="Close Expanded Card (Esc)"
+                      >
+                        <Minimize2 className="w-4 h-4 text-brand-cyan" />
+                        <span className="font-mono text-[10px] hidden sm:inline text-white/40">ESC</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Title & Metadata */}
+                  <div className="space-y-2 mb-4">
+                    <h2 className="font-mono text-lg sm:text-xl font-bold tracking-wide text-white leading-snug">
+                      {expDisplayTitle}
+                    </h2>
+
+                    <div className="flex items-center justify-between font-mono text-xs text-white/60 pt-2 border-b border-white/5 pb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="uppercase text-white/40 px-2 py-0.5 bg-white/5 rounded border border-white/10">{expTask.category}</span>
+                        <span className="uppercase text-white/40 px-2 py-0.5 bg-white/5 rounded border border-white/10">{expTask.difficulty}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 text-amber-300/90 font-medium">
+                          <Clock className="w-3.5 h-3.5" /> {expMeta.duration_minutes || 45} mins
+                        </span>
+                        <span className={cn("font-bold text-sm", isTeamup ? "bg-gradient-to-r from-brand-cyan to-brand-pink bg-clip-text text-transparent font-extrabold" : isAjay ? "text-brand-cyan" : "text-brand-pink")}>
+                          +{expTask.points} XP {isTeamup ? 'EACH' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subtask checklist section */}
+                <div className="flex-1 overflow-y-auto pr-1 space-y-3 my-2 scrollbar-thin scrollbar-thumb-white/20">
+                  <div className="flex items-center justify-between font-mono text-xs text-white/50 uppercase tracking-wider">
+                    <span>SUBTASKS DIRECTIVES ({completedSubtasksCount}/{totalSubtasks})</span>
+                    {totalSubtasks > 0 && (
+                      <span className={cn("font-bold", completionRatio === 1 ? "text-emerald-400" : "text-amber-300")}>
+                        {Math.round(completionRatio * 100)}% COMPLETE
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Progress Bar */}
+                  {totalSubtasks > 0 && (
+                    <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/10">
+                      <div 
+                        className={cn("h-full transition-all duration-500", isTeamup ? "bg-gradient-to-r from-brand-cyan via-purple-400 to-brand-pink" : isAjay ? "bg-brand-cyan" : "bg-brand-pink")}
+                        style={{ width: `${completionRatio * 100}%` }}
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2 pt-1">
+                    {expSubtasks.length === 0 ? (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 text-xs font-mono text-white/40">
+                        <span>No subtasks defined for this objective.</span>
+                        <button
+                          onClick={() => handleToggleComplete(expTask.id)}
+                          className="flex items-center gap-1.5 text-xs text-brand-cyan font-bold hover:underline"
+                        >
+                          {isCompleted ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Circle className="w-4 h-4" />}
+                          {isCompleted ? 'COMPLETED' : 'MARK DONE'}
+                        </button>
+                      </div>
+                    ) : (
+                      expSubtasks.map(st => (
+                        <div
+                          key={st.id}
+                          className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 transition-colors group/sub"
+                        >
+                          <button
+                            onClick={() => handleToggleSubtask(expTask.id, st.id)}
+                            className="flex items-center gap-3 flex-1 text-left min-w-0"
+                          >
+                            {st.completed ? (
+                              <CheckSquare className={cn("w-4 h-4 shrink-0", isTeamup ? "text-purple-400" : isAjay ? "text-brand-cyan" : "text-brand-pink")} />
+                            ) : (
+                              <Square className="w-4 h-4 stroke-[1.5] text-white/40 group-hover/sub:text-white/70 shrink-0" />
+                            )}
+                            <span className={cn("font-mono text-xs leading-normal", st.completed ? "line-through text-white/30" : "text-white/90")}>
+                              {st.title}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteSubtask(expTask.id, st.id)}
+                            className="opacity-60 hover:opacity-100 p-1 text-white/30 hover:text-red-400 transition-opacity ml-2 shrink-0"
+                            title="Delete Subtask"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add subtask input */}
+                  <div className="flex items-center gap-2 pt-2">
+                    <input
+                      value={inlineSubtaskInput[expTask.id] || ''}
+                      onChange={(e) => setInlineSubtaskInput({ ...inlineSubtaskInput, [expTask.id]: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddInlineSubtask(expTask.id) }}
+                      placeholder="+ Add new subtask directive..."
+                      className="flex-1 bg-black/60 border border-white/10 rounded-xl px-3 py-2 font-mono text-xs outline-none focus:border-white/30 text-white"
+                    />
+                    <button
+                      onClick={() => handleAddInlineSubtask(expTask.id)}
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl font-mono text-xs text-white/80 font-bold"
+                    >
+                      ADD
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="pt-4 border-t border-white/10 flex justify-end">
+                  <button
+                    onClick={() => setExpandedTaskId(null)}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 font-mono text-xs text-white font-bold tracking-wider transition-all"
+                  >
+                    CLOSE EXPANDED VIEW
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )
+        })()}
       </AnimatePresence>
 
     </div>
