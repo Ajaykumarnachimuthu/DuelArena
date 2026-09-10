@@ -16,7 +16,7 @@ import {
   Plus, Link as LinkIcon, 
   Clock, Move, ZoomIn, ZoomOut, 
   Layout, Eye, Sparkles, X, Grid as GridIcon, Users, RotateCcw,
-  Minimize2, Maximize2, CheckCircle2, Circle, Play, Trash2, CheckSquare, Square
+  Minimize2, Maximize2, CheckCircle2, Circle, Play, Trash2, CheckSquare, Square, Archive
 } from 'lucide-react'
 
 const AJAY_ID = 'd0536dfe-47ea-4525-97c6-5cf6e10f4e88'
@@ -42,8 +42,11 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   // Filter state: 'all' | 'ajay' | 'selvaa'
   const [filterUser, setFilterUser] = useState<'all' | 'ajay' | 'selvaa'>('all')
 
-  // Date Scope Filter state: 'today' | 'all'
-  const [dateFilter, setDateFilter] = useState<'today' | 'all'>('today')
+  // Date Scope Filter state: 'today' | 'archive'
+  const [dateFilter, setDateFilter] = useState<'today' | 'archive'>('today')
+
+  // Realtime notification toast
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   // Connecting node states
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null)
@@ -588,32 +591,75 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
   // Filtered tasks by user and daily scope
   const todayStr = new Date().toDateString()
   const isTeamup = (t: Task) => t.category === 'Teamup' || t.difficulty === 'Teamup'
-  const visibleTasks = tasks.filter(t => {
-    const matchesUser = filterUser === 'all' 
+
+  const userFilteredTasks = tasks.filter(t => {
+    return filterUser === 'all' 
       ? true 
       : filterUser === 'ajay' 
         ? t.user_id === AJAY_ID || isTeamup(t) 
         : t.user_id === SELVAA_ID || isTeamup(t)
-
-    if (!matchesUser) return false
-
-    if (dateFilter === 'today') {
-      const isCreatedToday = new Date(t.created_at).toDateString() === todayStr
-      
-      const subtasks = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id] : (t.subtasks || [])
-      const meta = { completed: t.completed, is_active: t.is_active, ...metaMap[t.id] }
-      const completedSubtasksCount = subtasks.filter(st => st.completed).length
-      const totalSubtasks = subtasks.length
-      const isCompleted = totalSubtasks > 0 ? completedSubtasksCount === totalSubtasks : !!meta.completed
-      const isActive = !isCompleted && (meta.is_active || false)
-
-      // Do NOT make task vanish when day ends if active/playing OR subtasks are in progress (ticked)
-      const inProgressOrActive = !isCompleted && (isActive || completedSubtasksCount > 0)
-
-      return isCreatedToday || inProgressOrActive
-    }
-    return true
   })
+
+  // Helper to determine if a task belongs to today's active canvas session
+  const isTaskToday = (t: Task) => {
+    const isCreatedToday = new Date(t.created_at).toDateString() === todayStr
+    const subtasks = (subtasksMap[t.id] && subtasksMap[t.id].length > 0) ? subtasksMap[t.id] : (t.subtasks || [])
+    const meta = { completed: t.completed, is_active: t.is_active, ...metaMap[t.id] }
+    const completedSubtasksCount = subtasks.filter(st => st.completed).length
+    const totalSubtasks = subtasks.length
+    const isCompleted = totalSubtasks > 0 ? completedSubtasksCount === totalSubtasks : !!meta.completed
+    const isActive = !isCompleted && (meta.is_active || false)
+    const inProgressOrActive = !isCompleted && (isActive || completedSubtasksCount > 0)
+    return isCreatedToday || inProgressOrActive
+  }
+
+  const todayTasksCount = userFilteredTasks.filter(t => isTaskToday(t)).length
+  const archiveTasksCount = userFilteredTasks.filter(t => !isTaskToday(t)).length
+
+  // Filter tasks according to day scope:
+  // - TODAY: directives created today or in-progress
+  // - ARCHIVES: directives of previous days alone (filtered out today's tasks)
+  const visibleTasks = userFilteredTasks.filter(t => {
+    if (dateFilter === 'today') {
+      return isTaskToday(t)
+    } else {
+      return !isTaskToday(t)
+    }
+  })
+
+  // Retrieval handler to bring an archived task back to the present canvas session
+  const handleRetrieveTask = (taskToRetrieve: Task) => {
+    const { title: cleanTitle, meta: extractedMeta } = extractTaskTitleAndMeta(taskToRetrieve.title)
+    const subtasks = (subtasksMap[taskToRetrieve.id] && subtasksMap[taskToRetrieve.id].length > 0) 
+      ? subtasksMap[taskToRetrieve.id] 
+      : (taskToRetrieve.subtasks || [])
+
+    const meta = {
+      duration_minutes: 45,
+      start_time: '09:00 AM',
+      ...metaMap[taskToRetrieve.id],
+      ...extractedMeta
+    }
+
+    const subtaskTitles = subtasks.map(st => st.title)
+
+    // Deploy onto today's canvas
+    onSubmit(
+      cleanTitle,
+      taskToRetrieve.difficulty,
+      taskToRetrieve.category,
+      meta.duration_minutes,
+      meta.start_time,
+      subtaskTitles
+    )
+
+    // Switch to TODAY view on canvas so the user immediately verifies the retrieved objective
+    setDateFilter('today')
+
+    // Toast notification
+    setToastMessage(`DIRECTIVE "${cleanTitle}" RETRIEVED TO PRESENT CANVAS`)
+    setTimeout(() => setToastMessage(null), 4000)
+  }
 
   // Color tokens
   const textColor = theme === 'cyan' ? 'text-brand-cyan' : 'text-brand-pink'
@@ -644,22 +690,22 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
               <button 
                 onClick={() => setDateFilter('today')}
                 className={cn(
-                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
+                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1.5",
                   dateFilter === 'today' ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold" : "text-white/40 hover:text-white"
                 )}
                 title="Show directives for today's active daily session"
               >
-                <Clock className="w-3 h-3" /> TODAY
+                <Clock className="w-3 h-3" /> TODAY ({todayTasksCount})
               </button>
               <button 
-                onClick={() => setDateFilter('all')}
+                onClick={() => setDateFilter('archive')}
                 className={cn(
-                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1",
-                  dateFilter === 'all' ? "bg-white/15 text-white font-bold" : "text-white/40 hover:text-white"
+                  "px-2.5 py-1 rounded-lg text-[11px] font-mono transition-all flex items-center gap-1.5",
+                  dateFilter === 'archive' ? "bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold" : "text-white/40 hover:text-white"
                 )}
-                title="Show all archived canvas directives"
+                title="Show archives of previous days alone (Filtered out today's tasks)"
               >
-                ARCHIVES
+                <Archive className="w-3 h-3" /> ARCHIVES ({archiveTasksCount})
               </button>
             </div>
 
@@ -966,9 +1012,19 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
           <div className="w-full h-full relative pointer-events-auto">
             {visibleTasks.length === 0 ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 pointer-events-none">
-                <Layout className="w-12 h-12 text-white/20 mb-3" />
-                <p className="font-mono text-sm text-white/40">NO OBJECTIVES FOUND ON CANVAS</p>
-                <p className="font-mono text-xs text-white/20 mt-1">Click "NEW OBJECTIVE" to deploy a task to the playground.</p>
+                {dateFilter === 'archive' ? (
+                  <>
+                    <Archive className="w-12 h-12 text-purple-400/30 mb-3" />
+                    <p className="font-mono text-sm text-purple-300/70 font-bold">NO PREVIOUS ARCHIVES LOCATED</p>
+                    <p className="font-mono text-xs text-white/30 mt-1">Directives from previous days will appear here automatically.</p>
+                  </>
+                ) : (
+                  <>
+                    <Layout className="w-12 h-12 text-white/20 mb-3" />
+                    <p className="font-mono text-sm text-white/40">NO OBJECTIVES FOUND ON CANVAS</p>
+                    <p className="font-mono text-xs text-white/20 mt-1">Click "NEW OBJECTIVE" to deploy a task to the playground.</p>
+                  </>
+                )}
               </div>
             ) : (
               visibleTasks.map(t => {
@@ -983,6 +1039,7 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 }
                 const isNewlyCreated = highlightTaskIds[t.id] || false
                 const isSourceInConnecting = connectingSourceId === t.id
+                const isArchived = !isTaskToday(t)
 
                 return (
                   <TaskNodeCard
@@ -992,6 +1049,8 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                     zoom={zoom}
                     isNewlyCreated={isNewlyCreated}
                     isSourceInConnecting={isSourceInConnecting}
+                    isArchived={isArchived}
+                    onRetrieve={() => handleRetrieveTask(t)}
                     subtasks={subtasks}
                     meta={meta}
                     inlineSubtaskInput={inlineSubtaskInput[t.id] || ''}
@@ -1257,10 +1316,30 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                           <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" /> GOING ON
                         </span>
                       )}
+
+                      {!isTaskToday(expTask) && (
+                        <span className="px-2.5 py-1 rounded text-xs font-mono uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold flex items-center gap-1 shadow-[0_0_8px_rgba(168,85,247,0.2)]">
+                          <Archive className="w-3.5 h-3.5 text-purple-400" /> ARCHIVED ({new Date(expTask.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })})
+                        </span>
+                      )}
                     </div>
 
                     {/* Action Controls & Close Toggle */}
                     <div className="flex items-center gap-2">
+                      {!isTaskToday(expTask) && (
+                        <button
+                          onClick={() => {
+                            handleRetrieveTask(expTask)
+                            setExpandedTaskId(null)
+                          }}
+                          title="Restore this archived directive to today's active canvas"
+                          className="px-3 py-1.5 rounded-xl border border-brand-cyan/50 bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan text-xs font-mono font-bold flex items-center gap-1.5 shadow-[0_0_15px_rgba(129,236,255,0.3)] transition-all cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>RESTORE TO TODAY</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => handleToggleActive(expTask.id)}
                         title={isActive ? "Pause Active Task" : "Mark as Active / Going On"}
@@ -1404,7 +1483,19 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
                 </div>
 
                 {/* Modal Footer */}
-                <div className="pt-4 border-t border-white/10 flex justify-end">
+                <div className="pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+                  {!isTaskToday(expTask) ? (
+                    <button
+                      onClick={() => {
+                        handleRetrieveTask(expTask)
+                        setExpandedTaskId(null)
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-brand-cyan/20 border border-brand-cyan/50 hover:bg-brand-cyan/30 font-mono text-xs text-brand-cyan font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(129,236,255,0.25)] cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4 text-brand-cyan" />
+                      RESTORE DIRECTIVE TO TODAY'S CANVAS
+                    </button>
+                  ) : <div />}
                   <button
                     onClick={() => setExpandedTaskId(null)}
                     className="w-full sm:w-auto px-6 py-2.5 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 font-mono text-xs text-white font-bold tracking-wider transition-all"
@@ -1416,6 +1507,21 @@ export function TaskScreen({ tasks, onSubmit, onDelete, theme }: TaskScreenProps
             </div>
           )
         })()}
+      </AnimatePresence>
+
+      {/* Real-time Cyber Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-6 right-6 z-50 px-4 py-2.5 rounded-xl bg-black/90 border border-brand-cyan/60 text-brand-cyan font-mono text-xs font-bold shadow-[0_0_20px_rgba(129,236,255,0.4)] flex items-center gap-2 pointer-events-auto backdrop-blur-xl"
+          >
+            <Sparkles className="w-4 h-4 text-brand-cyan" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
       </AnimatePresence>
 
     </div>

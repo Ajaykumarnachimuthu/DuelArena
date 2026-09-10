@@ -5,7 +5,7 @@ import { TaskMeta, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 import { cn } from '../lib/utils'
 import { 
   Trash2, Play, CheckCircle2, Circle, Link as LinkIcon, 
-  Clock, CheckSquare, Sparkles, X, Maximize2
+  Clock, CheckSquare, Sparkles, X, Maximize2, RotateCcw, Archive
 } from 'lucide-react'
 import { HoverMarqueeText } from './HoverMarqueeText'
 
@@ -18,6 +18,8 @@ interface TaskNodeCardProps {
   zoom?: number
   isNewlyCreated: boolean
   isSourceInConnecting: boolean
+  isArchived?: boolean
+  onRetrieve?: () => void
   subtasks: SubTask[]
   meta: TaskMeta
   inlineSubtaskInput: string
@@ -40,6 +42,8 @@ export const TaskNodeCard = memo(function TaskNodeCard({
   zoom = 1,
   isNewlyCreated,
   isSourceInConnecting,
+  isArchived,
+  onRetrieve,
   subtasks,
   meta,
   inlineSubtaskInput,
@@ -222,9 +226,26 @@ export const TaskNodeCard = memo(function TaskNodeCard({
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" /> GOING ON
                 </span>
               )}
+
+              {isArchived && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold flex items-center gap-1 shadow-[0_0_8px_rgba(168,85,247,0.2)]">
+                  <Archive className="w-3 h-3 text-purple-400" /> ARCHIVED
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1">
+              {isArchived && onRetrieve && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRetrieve() }}
+                  title="Retrieve this archived objective to today's active canvas"
+                  className="px-2 py-1 rounded-lg bg-brand-cyan/20 hover:bg-brand-cyan/30 text-brand-cyan border border-brand-cyan/50 text-[10px] font-mono font-bold flex items-center gap-1 transition-all shadow-[0_0_10px_rgba(129,236,255,0.25)]"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>RETRIEVE</span>
+                </button>
+              )}
+
               {onExpand && (
                 <button
                   onClick={(e) => { e.stopPropagation(); onExpand() }}
@@ -369,6 +390,22 @@ export const TaskNodeCard = memo(function TaskNodeCard({
               ADD
             </button>
           </div>
+
+          {/* Bottom Archived Bar with Restore CTA */}
+          {isArchived && onRetrieve && (
+            <div className="mt-3 pt-2.5 border-t border-white/10 relative z-10 flex items-center justify-between">
+              <span className="font-mono text-[9px] text-white/40 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-white/30" /> {new Date(task.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRetrieve() }}
+                className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-brand-cyan/20 to-blue-500/20 hover:from-brand-cyan/30 hover:to-blue-500/30 text-brand-cyan border border-brand-cyan/50 text-[10px] font-mono font-bold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(129,236,255,0.25)] cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3 text-brand-cyan" />
+                <span>RESTORE TO TODAY</span>
+              </button>
+            </div>
+          )}
 
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { Task } from '../lib/types'
 import { motion } from 'framer-motion'
-import { Zap, CheckCircle2 } from 'lucide-react'
+import { Zap, CheckCircle2, XCircle } from 'lucide-react'
 import { isTaskActive, isTaskCompleted, extractTaskTitleAndMeta } from '../lib/canvasUtils'
 import { HoverMarqueeText } from './HoverMarqueeText'
 
@@ -15,7 +15,7 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
   // Mobile filter state: 'all' | 'ajay' | 'selvaa'
   const [mobileFilter, setMobileFilter] = useState<'all' | 'ajay' | 'selvaa'>('all')
 
-  // Group all tasks by Date String
+  // Group all tasks by Date String - keeps everything across all dates (past days and today)
   const grouped = tasks.reduce((acc, task) => {
      const d = new Date(task.created_at).toDateString()
      if (!acc[d]) acc[d] = []
@@ -63,6 +63,12 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
         const ajayXP = ajays.filter(t => isTaskCompleted(t.id, t)).reduce((s,t) => s + t.points, 0)
         const selvaaXP = selvaas.filter(t => isTaskCompleted(t.id, t)).reduce((s,t) => s + t.points, 0)
 
+        const ajayDoneCount = ajays.filter(t => isTaskCompleted(t.id, t)).length
+        const ajayNotDoneCount = ajays.length - ajayDoneCount
+
+        const selvaaDoneCount = selvaas.filter(t => isTaskCompleted(t.id, t)).length
+        const selvaaNotDoneCount = selvaas.length - selvaaDoneCount
+
         const winner = ajayXP > selvaaXP ? 'AJAY' : selvaaXP > ajayXP ? 'SELVAA' : 'DRAW'
 
         return (
@@ -89,7 +95,13 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
               {(mobileFilter === 'all' || mobileFilter === 'ajay') && (
                 <div className="glass-panel p-6 border-brand-cyan/20">
                   <div className="flex justify-between items-center mb-6 border-b border-brand-cyan/20 pb-4">
-                     <h4 className="font-display tracking-widest text-brand-cyan text-glow-cyan text-sm">AJAY_OPS</h4>
+                     <div>
+                       <h4 className="font-display tracking-widest text-brand-cyan text-glow-cyan text-sm">AJAY_OPS</h4>
+                       <div className="flex items-center gap-2 mt-1">
+                         <span className="text-[10px] font-mono text-emerald-400 font-bold">✓ {ajayDoneCount} DONE</span>
+                         {ajayNotDoneCount > 0 && <span className="text-[10px] font-mono text-rose-400 font-bold">✕ {ajayNotDoneCount} NOT DONE</span>}
+                       </div>
+                     </div>
                      <span className="font-mono text-brand-cyan font-bold px-2.5 py-1 bg-brand-cyan/10 rounded-lg">{ajayXP} XP</span>
                   </div>
                   <div className="space-y-3">
@@ -98,37 +110,46 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                       const active = isTaskActive(t.id, t)
                       const completed = isTaskCompleted(t.id, t)
                       return (
-                        <div key={t.id} className="flex justify-between items-center bg-brand-cyan/5 p-3.5 rounded-xl border border-brand-cyan/10 hover:bg-brand-cyan/10 transition-colors">
+                        <div 
+                          key={t.id} 
+                          className={`flex justify-between items-center p-3.5 rounded-xl border transition-colors ${
+                            completed 
+                              ? 'bg-emerald-950/10 border-emerald-500/20 hover:bg-emerald-950/20' 
+                              : active 
+                                ? 'bg-amber-950/10 border-amber-500/30' 
+                                : 'bg-brand-cyan/5 border-brand-cyan/10 hover:bg-brand-cyan/10'
+                          }`}
+                        >
                           <div className="flex items-center gap-3 min-w-0 max-w-[200px] sm:max-w-[300px]">
                             <Zap className="w-4 h-4 text-brand-cyan opacity-70 shrink-0" />
                             <div className="min-w-0 flex-1">
                               <HoverMarqueeText
                                 text={extractTaskTitleAndMeta(t.title).title}
-                                className="font-mono text-xs font-bold text-white/90"
+                                className={`font-mono text-xs font-bold ${completed ? 'text-white/70 line-through decoration-emerald-400/50' : 'text-white/90'}`}
                               />
                               <div className="font-mono text-[10px] text-white/40 tracking-widest mt-0.5">{t.category}</div>
                             </div>
                           </div>
 
-
-                          {/* Status Badge: Pulsing & Shrinking ON PROGRESS vs COMPLETED */}
+                          {/* Status Badge: ON PROGRESS vs MARKED DONE vs NOT DONE */}
                           {active ? (
                             <motion.div
                               animate={{ scale: [1, 0.94, 1], opacity: [1, 0.75, 1] }}
                               transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
-                              className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1 shrink-0"
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1.5 shrink-0"
                             >
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                               <span>ON PROGRESS</span>
                             </motion.div>
                           ) : completed ? (
-                            <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1 shrink-0">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                              <span>DONE • +{t.points} XP</span>
+                            <div className="px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>MARKED DONE • +{t.points} XP</span>
                             </div>
                           ) : (
-                            <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-white/5 text-white/40 border border-white/10 shrink-0">
-                              STANDBY
+                            <div className="px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1.5 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.15)]">
+                              <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                              <span>NOT DONE</span>
                             </div>
                           )}
                         </div>
@@ -142,7 +163,13 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                {(mobileFilter === 'all' || mobileFilter === 'selvaa') && (
                 <div className="glass-panel p-6 border-brand-pink/20">
                   <div className="flex justify-between items-center mb-6 border-b border-brand-pink/20 pb-4">
-                     <h4 className="font-display tracking-widest text-brand-pink text-glow-pink text-sm">SELVAA_OPS</h4>
+                     <div>
+                       <h4 className="font-display tracking-widest text-brand-pink text-glow-pink text-sm">SELVAA_OPS</h4>
+                       <div className="flex items-center gap-2 mt-1">
+                         <span className="text-[10px] font-mono text-emerald-400 font-bold">✓ {selvaaDoneCount} DONE</span>
+                         {selvaaNotDoneCount > 0 && <span className="text-[10px] font-mono text-rose-400 font-bold">✕ {selvaaNotDoneCount} NOT DONE</span>}
+                       </div>
+                     </div>
                      <span className="font-mono text-brand-pink font-bold px-2.5 py-1 bg-brand-pink/10 rounded-lg">{selvaaXP} XP</span>
                   </div>
                 <div className="space-y-3">
@@ -151,37 +178,46 @@ export function HistoryScreen({ tasks }: { tasks: Task[] }) {
                     const active = isTaskActive(t.id, t)
                     const completed = isTaskCompleted(t.id, t)
                     return (
-                      <div key={t.id} className="flex justify-between items-center bg-brand-pink/5 p-3.5 rounded-xl border border-brand-pink/10 hover:bg-brand-pink/10 transition-colors">
+                      <div 
+                        key={t.id} 
+                        className={`flex justify-between items-center p-3.5 rounded-xl border transition-colors ${
+                          completed 
+                            ? 'bg-emerald-950/10 border-emerald-500/20 hover:bg-emerald-950/20' 
+                            : active 
+                              ? 'bg-amber-950/10 border-amber-500/30' 
+                              : 'bg-brand-pink/5 border-brand-pink/10 hover:bg-brand-pink/10'
+                        }`}
+                      >
                         <div className="flex items-center gap-3 min-w-0 max-w-[200px] sm:max-w-[300px]">
                           <Zap className="w-4 h-4 text-brand-pink opacity-70 shrink-0" />
                           <div className="min-w-0 flex-1">
                             <HoverMarqueeText
                               text={extractTaskTitleAndMeta(t.title).title}
-                              className="font-mono text-xs font-bold text-white/90"
+                              className={`font-mono text-xs font-bold ${completed ? 'text-white/70 line-through decoration-emerald-400/50' : 'text-white/90'}`}
                             />
                             <div className="font-mono text-[10px] text-white/40 tracking-widest mt-0.5">{t.category}</div>
                           </div>
                         </div>
 
-
-                        {/* Status Badge: Pulsing & Shrinking ON PROGRESS vs COMPLETED */}
+                        {/* Status Badge: ON PROGRESS vs MARKED DONE vs NOT DONE */}
                         {active ? (
                           <motion.div
                             animate={{ scale: [1, 0.94, 1], opacity: [1, 0.75, 1] }}
                             transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
-                            className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1 shrink-0"
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold flex items-center gap-1.5 shrink-0"
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
                             <span>ON PROGRESS</span>
                           </motion.div>
                         ) : completed ? (
-                          <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1 shrink-0">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                            <span>DONE • +{t.points} XP</span>
+                          <div className="px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold flex items-center gap-1.5 shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>MARKED DONE • +{t.points} XP</span>
                           </div>
                         ) : (
-                          <div className="px-2.5 py-0.5 rounded text-[10px] font-mono uppercase bg-white/5 text-white/40 border border-white/10 shrink-0">
-                            STANDBY
+                          <div className="px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase bg-rose-500/15 text-rose-300 border border-rose-500/30 font-bold flex items-center gap-1.5 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.15)]">
+                            <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                            <span>NOT DONE</span>
                           </div>
                         )}
                       </div>
